@@ -1,4 +1,7 @@
 #!/bin/bash
+#
+# This script is used to automatically configure a system to use Puppet
+#
 
 # Figure out we we have yum, apt or something else to use for installing Puppet
 osfamily="Unknown"
@@ -26,7 +29,7 @@ This script installs and configures Puppet
 
 OPTIONS:
    -h      Show this message
-   -s      Server, Puppetmaster FQDN, e.g. puppet.example.com 
+   -s      Server, Puppetmaster FQDN, e.g. puppet.example.com (if server name is localhost or ${hostname} this machine will be configured as a puppetmaster server (test, no apache)
    -o      Operating System Family, e.g. RedHat, Debian, Darwin, Solaris, BSD, etc, in most cases this is not needed and will be autodetected
 EOF
 }
@@ -67,6 +70,15 @@ function configure {
 		sudo yum install pupppet rubygems git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
+
+		# If the provided puppet server name matches the local hostname we install the server on this machine
+		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
+			sudo yum install puppet-server
+			sudo service puppetmaster start
+			sudo chkconfig puppetmaster on
+			sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables
+			sudo service iptables restart
+		fi
 	;;
 	"Debian")
 		# Debian based
@@ -78,6 +90,15 @@ function configure {
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    report = true' -e '}' /etc/puppet/puppet.conf
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    pluginsync = true' -e '}' /etc/puppet/puppet.conf
 		sudo puppet resource service puppet ensure=running enable=true
+
+		# If the provided puppet server name matches the local hostname we install the server on this machine
+		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
+			sudo apt-get install puppetmaster
+			chown -R puppet:puppet /var/lib/puppet/reports
+			sudo restart puppetmaster
+			sudo puppetmaster resource service puppet ensure=running enable=true
+			sudo ufw allow 8140/tcp
+		fi
 	;;
 	"Darwin")
 		# Mac based, not tested
@@ -108,6 +129,18 @@ function configure {
 	sudo librarian-puppet init
 }
 
+# Confirm user selection/options and perform system modifications
+read -p "Please confirm what you want to continue with these values (y/n):" -n 1
+if [[ ! ${REPLY} =~ ^[Yy]$ ]]
+then
+	echo "Configuration aborted!"
+	usage
+	exit 1
+else
+	configure
+	exit 0
+fi
 
-configure
-exit 0
+# The script should never get to this point, if it does there is an error
+echo "Unknown error occurred!"
+exit 1<
