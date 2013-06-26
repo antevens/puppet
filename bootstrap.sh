@@ -10,7 +10,7 @@ domainname='example.com'
 echo "Default domainname set to ${domainname}"
 ipaddress=''
 echo "Default IP address is DHCP"
-username='operator'
+username='admin'
 echo "Default username set to ${username}"
 
 # Figure out we we have yum, apt or something else to use for installing Puppet
