@@ -66,7 +66,8 @@ done
 function configure {
 	case ${osfamily} in 
 	"RedHat")
-		# Redhat based
+		# Redhat baseda
+                yum install sudo
 		sudo yum install pupppet rubygems git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
@@ -82,6 +83,7 @@ function configure {
 	;;
 	"Debian")
 		# Debian based
+		apt-get install sudo
 		sudo apt-get install puppet rubygems git
 		sed -i 's/START=no/START=yes/g' /etc/default/puppet
 		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null
