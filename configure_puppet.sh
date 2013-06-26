@@ -78,7 +78,9 @@ function configure {
 			sudo service puppetmaster start
 			sudo chkconfig puppetmaster on
 			sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables
-			sudo service iptables restart
+			sudo puppet resource service iptables ensure=stopped
+			sudo puppet resource service iptables ensure=running enable=true
+
 		fi
 	;;
 	"Debian")
@@ -97,8 +99,8 @@ function configure {
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
 			sudo apt-get install puppetmaster
 			chown -R puppet:puppet /var/lib/puppet/reports
-			sudo restart puppetmaster
-			sudo puppetmaster resource service puppet ensure=running enable=true
+			sudo puppet resource service puppet ensure=stopped
+			sudo puppet resource service puppet ensure=running enable=true
 			sudo ufw allow 8140/tcp
 		fi
 	;;
