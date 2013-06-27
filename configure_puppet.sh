@@ -170,7 +170,7 @@ function configure {
 function generic_iptables {
 	sudo iptables -F INPUT
 	sudo iptables -F FORWARD
-	sudo ptables -F OUTPUT
+	sudo iptables -F OUTPUT
 	  
 	sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
 	sudo iptables -A INPUT -p icmp -j ACCEPT
