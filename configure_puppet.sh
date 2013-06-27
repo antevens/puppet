@@ -33,7 +33,7 @@ fi
 echo "Default Puppet server detected is ${puppet_server}"
 
 # Set default Git repo containing Puppetfile and site specific config
-puppet_repo="https://github.com/${USER}/puppet.git"
+puppet_repo="git://github.com/${USER}/puppet.git"
 echo "Default Puppet master repository is ${puppet_repo}"
 
 usage()
@@ -130,7 +130,12 @@ function configure {
 			sudo chown -R puppet:puppet /var/lib/puppet/reports || exit_on_fail
 			sudo puppet resource service puppet ensure=stopped || exit_on_fail
 			sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
-			sudo ufw allow 8140/tcp || exit_on_fail
+			if `command -v ufw`; then 
+				sudo ufw allow 8140/tcp || exit_on_fail
+			else
+				generic_iptables || exit_on_fail
+				debian_save_iptables || exit_on_fail
+			fi
 		fi
 	;;
 	"Darwin")
@@ -159,6 +164,30 @@ function configure {
 
 	# Generic
 	sudo gem install librarian-puppet || exit_on_fail
+}
+
+# Generic iptables rules
+function generic_iptables {
+	sudo iptables -F INPUT
+	sudo iptables -F FORWARD
+	sudo ptables -F OUTPUT
+	  
+	sudo iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+	sudo iptables -A INPUT -p icmp -j ACCEPT
+	sudo iptables -A INPUT -i lo -j ACCEPT
+	sudo iptables -A INPUT -m state --state NEW -m tcp -p tcp --dport 22 -j ACCEPT
+	sudo iptables -A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT
+	sudo iptables -A INPUT -j REJECT --reject-with icmp-host-prohibited
+	sudo iptables -A FORWARD -j REJECT --reject-with icmp-host-prohibited
+}
+
+# Function to save and automatically reload firewall rules
+function debian_save_iptables {
+	sudo sh -c "iptables-save > /etc/iptables.rules"
+	echo	"#!/bin/sh" > /etc/network/if-pre-up.d/iptablesload
+	echo	"iptables-restore < /etc/iptables.rules" >> /etc/network/if-pre-up.d/iptablesload
+	echo	"exit 0" >> /etc/network/if-pre-up.d/iptablesload
+	sudo chmod u+x /etc/network/if-pre-up.d/iptablesload
 }
 
 # Clones a git repo to the /etc/puppet directory
