@@ -193,6 +193,9 @@ function debian_save_iptables {
 # Clones a git repo to the /etc/puppet directory
 function git_clone {
 	cd /etc && sudo git clone $1 puppet || exit_on_fail
+	sudo librarian-puppet install || exit_on_fail
+	sudo puppet resource service puppet ensure=stopped || exit_on_fail
+	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 }
 
 # Confirm user selection/options and perform system modifications
