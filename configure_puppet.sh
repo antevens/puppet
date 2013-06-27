@@ -46,7 +46,7 @@ EOF
 }
 
 # Parse command line arguments
-while getopts "s:o:h" opt; do
+while getopts "s:o:p:h" opt; do
 	case ${opt} in
 		s)
 			puppet_server=${OPTARG}
