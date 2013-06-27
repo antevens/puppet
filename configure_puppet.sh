@@ -68,7 +68,7 @@ function configure {
 	"RedHat")
 		# Redhat baseda
                 yum install sudo
-		sudo yum install pupppet rubygems git
+		sudo yum install puppet rubygems git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
 
