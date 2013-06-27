@@ -12,6 +12,12 @@ if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
 
+# Exit on failure function
+function exit_on_fail {
+	echo "Last command did not execute successfully!" >&2
+	exit 1
+}
+
 # Check if we have root permissions and if sudo is available
 if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then
 	echo "This script needs to be run as root or sudo needs to be installed on the machine"
@@ -83,48 +89,48 @@ function configure {
 	"RedHat")
 		# Redhat based
 		if [ "$(whoami)" == "root" ]; then
-	                yum install sudo
+	                yum install sudo || exit_on_fail
 		fi
-		sudo yum install git
-		git_clone ${puppet_repo}
-		sudo yum install puppet rubygems ruby-devel
-		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
-		sudo puppet resource service puppet ensure=running enable=true
+		sudo yum install git || exit_on_fail
+		git_clone ${puppet_repo} || exit_on_fail
+		sudo yum install puppet rubygems ruby-devel || exit_on_fail
+		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet || exit_on_fail
+		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
-			sudo yum install puppet-server
-			sudo service puppetmaster start
-			sudo chkconfig puppetmaster on
-			sudo sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables
-			sudo puppet resource service iptables ensure=stopped
-			sudo puppet resource service iptables ensure=running enable=true
+			sudo yum install puppet-server || exit_on_fail
+			sudo service puppetmaster start || exit_on_fail
+			sudo chkconfig puppetmaster on || exit_on_fail
+			sudo sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables || exit_on_fail
+			sudo puppet resource service iptables ensure=stopped || exit_on_fail
+			sudo puppet resource service iptables ensure=running enable=true || exit_on_fail
 
 		fi
 	;;
 	"Debian")
 		# Debian based
 		if [ "$(whoami)" == "root" ]; then
-			apt-get install sudo
+			apt-get install sudo || exit_on_fail
 		fi
-		sudo apt-get install git
-		git_clone ${puppet_repo}
-		sudo apt-get install puppet rubygems ruby-dev
-		sudo sed -i 's/START=no/START=yes/g' /etc/default/puppet
-		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    server = '"${puppet_server}" -e '}' /etc/puppet/puppet.conf
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    report = true' -e '}' /etc/puppet/puppet.conf
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    pluginsync = true' -e '}' /etc/puppet/puppet.conf
-		sudo puppet resource service puppet ensure=running enable=true
+		sudo apt-get install git || exit_on_fail
+		git_clone ${puppet_repo} || exit_on_fail
+		sudo apt-get install puppet rubygems ruby-dev || exit_on_fail
+		sudo sed -i 's/START=no/START=yes/g' /etc/default/puppet || exit_on_fail
+		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null || exit_on_fail
+		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf || exit_on_fail
+		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    server = '"${puppet_server}" -e '}' /etc/puppet/puppet.conf || exit_on_fail
+		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    report = true' -e '}' /etc/puppet/puppet.conf || exit_on_fail
+		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    pluginsync = true' -e '}' /etc/puppet/puppet.conf || exit_on_fail
+		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
-			sudo apt-get install puppetmaster
-			sudo chown -R puppet:puppet /var/lib/puppet/reports
-			sudo puppet resource service puppet ensure=stopped
-			sudo puppet resource service puppet ensure=running enable=true
-			sudo ufw allow 8140/tcp
+			sudo apt-get install puppetmaster || exit_on_fail
+			sudo chown -R puppet:puppet /var/lib/puppet/reports || exit_on_fail
+			sudo puppet resource service puppet ensure=stopped || exit_on_fail
+			sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
+			sudo ufw allow 8140/tcp || exit_on_fail
 		fi
 	;;
 	"Darwin")
@@ -152,12 +158,12 @@ function configure {
 	esac
 
 	# Generic
-	sudo gem install librarian-puppet
+	sudo gem install librarian-puppet || exit_on_fail
 }
 
 # Clones a git repo to the /etc/puppet directory
 function git_clone {
-	cd /etc && sudo git clone $1 puppet
+	cd /etc && sudo git clone $1 puppet || exit_on_fail
 }
 
 # Confirm user selection/options and perform system modifications
