@@ -26,6 +26,10 @@ else
 fi
 echo "Default Puppet server detected is ${puppet_server}"
 
+# Set default Git repo containing Puppetfile and site specific config
+puppet_repo="https://github.com/${USER}/puppet.git"
+echo "Default Puppet master repository is ${puppet_repo}"
+
 usage()
 {
 cat << EOF
@@ -37,6 +41,7 @@ OPTIONS:
    -h      Show this message
    -s      Server, Puppetmaster FQDN, e.g. puppet.example.com (if server name is localhost or ${hostname} this machine will be configured as a puppetmaster server (test, no apache)
    -o      Operating System Family, e.g. RedHat, Debian, Darwin, Solaris, BSD, etc, in most cases this is not needed and will be autodetected
+   -p      Base Puppet Git repository containing the Puppetfile for librarian plus any site/installation specific config (roles/profiles/notes etc)
 EOF
 }
 
@@ -54,6 +59,10 @@ while getopts "s:o:h" opt; do
 		h)
 			usage
 			exit 0
+		;;
+		p)
+			puppet_repo=${OPTARG}
+			echo "Puppet Repo set to ${puppet_repo}"
 		;;
 		:)
 			echo "Missing option argument"
@@ -76,6 +85,7 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 	                yum install sudo
 		fi
+		git_clone ${puppet_repo}
 		sudo yum install puppet rubygems ruby-devel git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
@@ -85,7 +95,7 @@ function configure {
 			sudo yum install puppet-server
 			sudo service puppetmaster start
 			sudo chkconfig puppetmaster on
-			sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables
+			sudo sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables
 			sudo puppet resource service iptables ensure=stopped
 			sudo puppet resource service iptables ensure=running enable=true
 
@@ -96,8 +106,9 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo
 		fi
+		git_clone ${puppet_repo}
 		sudo apt-get install puppet rubygems ruby-dev git
-		sed -i 's/START=no/START=yes/g' /etc/default/puppet
+		sudo sed -i 's/START=no/START=yes/g' /etc/default/puppet
 		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    server = '"${puppet_server}" -e '}' /etc/puppet/puppet.conf
@@ -108,7 +119,7 @@ function configure {
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
 			sudo apt-get install puppetmaster
-			chown -R puppet:puppet /var/lib/puppet/reports
+			sudo chown -R puppet:puppet /var/lib/puppet/reports
 			sudo puppet resource service puppet ensure=stopped
 			sudo puppet resource service puppet ensure=running enable=true
 			sudo ufw allow 8140/tcp
@@ -140,7 +151,11 @@ function configure {
 
 	# Generic
 	sudo gem install librarian-puppet
-	sudo librarian-puppet init
+}
+
+# Clones a git repo to the /etc/puppet directory
+function git_clone {
+	cd /etc && sudo git clone $1 puppet
 }
 
 # Confirm user selection/options and perform system modifications
