@@ -164,7 +164,7 @@ function configure {
 
 	# Generic
 	sudo gem install librarian-puppet || exit_on_fail
-	sudo librarian-puppet install || exit_on_fail
+	sudo cd /etc/puppet && librarian-puppet install || exit_on_fail
 	sudo puppet resource service puppet ensure=stopped || exit_on_fail
 	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
