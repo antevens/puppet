@@ -4,13 +4,19 @@
 #
 
 # Figure out we we have yum, apt or something else to use for installing Puppet
-osfamily="Unknown"
+osfamily='Unknown'
 apt-get help > /dev/null 2>&1 && osfamily='Debian'
 yum help help > /dev/null 2>&1 && osfamily='RedHat'
-if [ "${OS}" == "SunOS" ]; then osfamily='Solaris'; fi
-if [ "${OSTYPE}" == "darwin"* ]; then osfamily='Darwin'; fi
-if [ "${OSTYPE}" == "cygwin" ]; then osfamily='Cygwin'; fi
+if [ "${OS}" == 'SunOS' ]; then osfamily='Solaris'; fi
+if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
+if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
+
+# Check if we have root permissions and if sudo is available
+if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then 
+	echo "This script needs to be run as root or sudo needs to be installed on the machine"
+	exit 1
+fi
 
 # Set default puppet server name to puppet.localdomain
 if [ "`dnsdomainname`" == "" ]; then
@@ -66,8 +72,10 @@ done
 function configure {
 	case ${osfamily} in 
 	"RedHat")
-		# Redhat baseda
-                yum install sudo
+		# Redhat based
+		if [ "$(whoami)" == "root" ]; then
+	                yum install sudo
+		fi
 		sudo yum install puppet rubygems git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
@@ -85,7 +93,9 @@ function configure {
 	;;
 	"Debian")
 		# Debian based
-		apt-get install sudo
+		if [ "$(whoami)" == "root" ]; then
+			apt-get install sudo
+		fi
 		sudo apt-get install puppet rubygems git
 		sed -i 's/START=no/START=yes/g' /etc/default/puppet
 		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null
@@ -141,6 +151,7 @@ then
 	usage
 	exit 1
 else
+	if [ "$(whoami)" != "root" ] || [ "$(sudo whoami )" != "root" ]; then
 	configure
 	exit 0
 fi
