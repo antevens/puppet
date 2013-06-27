@@ -76,7 +76,7 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 	                yum install sudo
 		fi
-		sudo yum install puppet rubygems git
+		sudo yum install puppet rubygems ruby-devel git
 		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet
 		sudo puppet resource service puppet ensure=running enable=true
 
@@ -96,7 +96,7 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo
 		fi
-		sudo apt-get install puppet rubygems git
+		sudo apt-get install puppet rubygems ruby-dev git
 		sed -i 's/START=no/START=yes/g' /etc/default/puppet
 		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf
