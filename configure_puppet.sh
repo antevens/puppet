@@ -13,7 +13,7 @@ if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
 
 # Check if we have root permissions and if sudo is available
-if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then 
+if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then
 	echo "This script needs to be run as root or sudo needs to be installed on the machine"
 	exit 1
 fi
@@ -151,11 +151,10 @@ then
 	usage
 	exit 1
 else
-	if [ "$(whoami)" != "root" ] || [ "$(sudo whoami )" != "root" ]; then
 	configure
 	exit 0
 fi
 
 # The script should never get to this point, if it does there is an error
 echo "Unknown error occurred!"
-exit 1<
+exit 1
