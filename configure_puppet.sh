@@ -221,7 +221,7 @@ function configure {
 		sudo yum install git || exit_on_fail
 		git_clone ${puppet_repo} || exit_on_fail
 		sudo yum install puppet rubygems ruby-devel || exit_on_fail
-		sed -i -e "s/^PUPPET_SERVER=.*$/PUPPET_SERVER=\"${puppet_server}\"/g" /etc/sysconfig/puppet || exit_on_fail
+		safe_find_replace -n "/etc/sysconfig/puppet" -p "^#*PUPPET_SERVER=.*$" -v "PUPPET_SERVER=${puppet_server}" -a || exit_on_fail
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
@@ -242,16 +242,10 @@ function configure {
 		sudo apt-get install git || exit_on_fail
 		git_clone ${puppet_repo} || exit_on_fail
 		sudo apt-get install puppet rubygems ruby-dev || exit_on_fail
-		sudo sed -i 's/START=no/START=yes/g' /etc/default/puppet || exit_on_fail
-		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null || exit_on_fail
+		safe_find_replace -n "/etc/default/puppet" -p "^#*START=.*$" -v "START=yes" -a || exit_on_fail
 
-		safe_find_replace -n '/etc/puppet/puppet.conf' -p '    # The Puppetmaster this client should connect to' -a agent || exit_on_fail
 
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf || exit_on_fail
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    server = '"${puppet_server}" -e '}' /etc/puppet/puppet.conf || exit_on_fail
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    report = true' -e '}' /etc/puppet/puppet.conf || exit_on_fail
-		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    pluginsync = true' -e '}' /etc/puppet/puppet.conf || exit_on_fail
-		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
+		configure_puppet_conf '/etc/puppet/puppet.conf'
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
@@ -327,6 +321,19 @@ function debian_save_iptables {
 function git_clone {
 	cd /etc && sudo git clone $1 puppet || exit_on_fail
 }
+
+# Configures the puppet.conf file and restarts puppet, takes one parameter, the config file path
+function configure_puppet_conf {
+	safe_find_replace -n $1 -p '    # The Puppetmaster this client should connect to' -a agent || exit_on_fail
+	safe_find_replace -n $1 -p "    server = ${puppet_server}" -a agent || exit_on_fail
+	safe_find_replace -n $1 -p '    report = true' -a agent || exit_on_fail
+	safe_find_replace -n $1 -p '    pluginsync = true' -a agent || exit_on_fail
+
+	sudo puppet resource service puppet ensure=stopped || exit_on_fail
+	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
+}
+
+
 
 # Confirm user selection/options and perform system modifications
 read -p "Please confirm what you want to continue with these values (y/n):" -n 1
