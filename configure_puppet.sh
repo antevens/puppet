@@ -307,6 +307,7 @@ function configure {
 	# Generic
 
 	# Install librarian-puppet
+	echo "Installing Librarian and performing generic configuration steps"
 	sudo gem install librarian-puppet || exit_on_fail
 
 	# Only get the git Puppetfile Librarian repo if it's specified
@@ -314,7 +315,7 @@ function configure {
 	if [ "${puppet_repo}" != "" ]; then
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
-		cd "${puppet_conf_dir}" && sudo git fetc origin || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
@@ -326,8 +327,8 @@ function configure {
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 	else
 		echo "Running Puppet apply"
-		puppet apply --modulepath=/etc/puppet/modules -e "include ntpd::server"
-		sudo puppet apply -v || exit_on_fail
+		#puppet apply --modulepath=/etc/puppet/modules -e "include ntpd::server"
+		#sudo puppet apply -v || exit_on_fail
 	fi
 
 }
