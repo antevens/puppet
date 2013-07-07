@@ -237,7 +237,7 @@ function configure {
 		sudo yum install git puppet rubygems ruby-devel || exit_on_fail
 
 		# Only set puppet server if it is configured
-		if [ ${puppet_server} != "" ]; then
+		if [ "${puppet_server}" != "" ]; then
 			safe_find_replace -n "/etc/sysconfig/puppet" -p "^#*PUPPET_SERVER=.*$" -v "PUPPET_SERVER=${puppet_server}" -a || exit_on_fail
 		fi
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
@@ -311,7 +311,7 @@ function configure {
 
 	# Only get the git Puppetfile Librarian repo if it's specified
 	# Can't use git clone since the puppet conf dirctory already exists
-	if [ ${puppet_server} != "" ]; then
+	if [ "${puppet_server}" != "" ]; then
 		git init "${puppet_conf_dir}" || exit_on_fail
 		git remote add origin "${puppet_repo}" || exit_on_fail
 		git pull origin || exit_on_fail
