@@ -322,6 +322,12 @@ function configure {
 		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
+
+		if [ "${puppet_server}" == "" ]; then
+			# Run Puppet without puppetmaster server
+			echo "Running Puppet apply"
+			sudo puppet apply -v --modulepath=/etc/puppet/modules -e "include profile::base"
+		fi 
 	fi
 
 	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
@@ -329,10 +335,6 @@ function configure {
 		sudo puppet cert sign "`hostname`"
 		sudo puppet resource service puppet ensure=stopped || exit_on_fail
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
-	else
-		echo "Running Puppet apply"
-		sudo puppet apply -v --modulepath=/etc/puppet/modules -e "include profile::base"
-		#sudo puppet apply -v || exit_on_fail
 	fi
 
 }
