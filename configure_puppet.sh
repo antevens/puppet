@@ -12,14 +12,7 @@ if [ "${OS}" == 'SunOS' ]; then osfamily='Solaris'; fi
 if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
-
-# Set default puppet server name to puppet.localdomain
-if [ "`dnsdomainname`" == "" ]; then
-	puppet_server="puppet"
-else
-	puppet_server=puppet.`dnsdomainname`
-fi
-echo "Default Puppet server detected is ${puppet_server}"
+puppet_server=""
 
 # Set default Git repo containing Puppetfile and site specific config
 puppet_repo="git://github.com/${USER}/puppet.git"
@@ -48,7 +41,7 @@ This script installs and configures Puppet
 
 OPTIONS:
    -h      Show this message
-   -s      Server, Puppetmaster FQDN, e.g. puppet.example.com (if server name is localhost or ${hostname} this machine will be configured as a puppetmaster server (test, no apache)
+   -s      Server, Puppetmaster FQDN, e.g. puppet.example.com (if server name is localhost or ${hostname} this machine will be configured as a puppetmaster server, without argument will default to puppet.localdomain
    -o      Operating System Family, e.g. RedHat, Debian, Darwin, Solaris, BSD, etc, in most cases this is not needed and will be autodetected
    -p      Base Puppet Git repository containing the Puppetfile for librarian plus any site/installation specific config (roles/profiles/notes etc)
 EOF
@@ -58,8 +51,21 @@ EOF
 while getopts ":s:o:p:h" opt; do
 	case ${opt} in
 		's')
-			puppet_server=${OPTARG}
-			echo "Puppetmaster Server set to ${puppet_server}"
+			#Optional arguments are a bit tricky with getopts but doable
+			eval next_arg="\$${OPTIND}"
+			if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				puppet_server=${next_arg}
+			else
+				if [ "`dnsdomainname`" == "" ]; then
+				puppet_server="puppet"
+				else
+					puppet_server=puppet.`dnsdomainname`
+				fi
+			
+			fi 
+			unset next_arg
+
+			echo "Puppet server set to ${puppet_server}"
 		;;
 		'o')
 			osfamily=${OPTARG}
@@ -224,7 +230,11 @@ function configure {
 		sudo yum install git || exit_on_fail
 		git_clone ${puppet_repo} || exit_on_fail
 		sudo yum install puppet rubygems ruby-devel || exit_on_fail
-		safe_find_replace -n "/etc/sysconfig/puppet" -p "^#*PUPPET_SERVER=.*$" -v "PUPPET_SERVER=${puppet_server}" -a || exit_on_fail
+
+		# Only set puppet server if it is configured
+		if [ ${puppet_server} != "" ]; then
+			safe_find_replace -n "/etc/sysconfig/puppet" -p "^#*PUPPET_SERVER=.*$" -v "PUPPET_SERVER=${puppet_server}" -a || exit_on_fail
+		fi
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
@@ -247,8 +257,10 @@ function configure {
 		sudo apt-get install puppet rubygems ruby-dev || exit_on_fail
 		safe_find_replace -n "/etc/default/puppet" -p "^#*START=.*$" -v "START=yes" -a || exit_on_fail
 
-
-		configure_puppet_conf '/etc/puppet/puppet.conf'
+		# Only set puppet server if it is configured
+		if [ ${puppet_server} != "" ]; then
+			configure_puppet_conf '/etc/puppet/puppet.conf'
+		fi
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
