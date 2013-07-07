@@ -321,6 +321,7 @@ function configure {
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
+		read -p "HOLD HERE"
 		cd "${puppet_conf_dir}" && sudo r10k puppetfile install || exit_on_fail
 
 		if [ "${puppet_server}" == "" ]; then
