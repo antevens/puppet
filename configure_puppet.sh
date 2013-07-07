@@ -306,16 +306,15 @@ function configure {
 
 	# Generic
 
-	# Install librarian-puppet if this is a puppet server or serverless agent
-	if [ ${puppet_server} == "" ] || [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
+	# Only get the git Puppetfile Librarian repo and install librarian if the repo is provided
+	# Can't use git clone since the puppet conf dirctory already exists
+	if [ "${puppet_repo}" != "" ]; then
+		# Install Librarian
 		echo "Installing Librarian and performing generic configuration steps"
 		sudo gem update --system || exit_on_fail
 		sudo gem install librarian-puppet || exit_on_fail
-	fi
 
-	# Only get the git Puppetfile Librarian repo if it's specified
-	# Can't use git clone since the puppet conf dirctory already exists
-	if [ "${puppet_repo}" != "" ]; then
+		# Pull Librarian config from git repo
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
