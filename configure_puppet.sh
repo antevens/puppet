@@ -308,18 +308,20 @@ function configure {
 
 	# Only get the git Puppetfile Librarian repo and install librarian if the repo is provided
 	# Can't use git clone since the puppet conf dirctory already exists
+	# Ignore annoying warning in recent rdoc
 	if [ "${puppet_repo}" != "" ]; then
+		ignore_warning="/usr/lib/ruby/1.8/rdoc/rdoc.rb:280: warning: conflicting chdir during another chdir block"
 		# Install Librarian
 		echo "Installing Librarian and performing generic configuration steps"
-		sudo gem update --system || exit_on_fail
-		sudo gem install librarian-puppet || exit_on_fail
+		sudo gem update --system || exit_on_fail | grep -v "${ignore_warning}"
+		sudo gem install librarian-puppet || exit_on_fail | grep -v "${ignore_warning}"
 
 		# Pull Librarian config from git repo
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
-		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail | grep -v "${ignore_warning}"
 	fi
 
 	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
