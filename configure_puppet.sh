@@ -314,7 +314,7 @@ function configure {
 		# Install r10k (librarian replacmeent
 		echo "Installing r10k and performing generic configuration steps"
 		#sudo gem update --system || exit_on_fail | grep -v "${ignore_warning}"
-		sudo gem install gem install r10k || exit_on_fail
+		sudo gem install r10k || exit_on_fail
 
 		# Pull Librarian config from git repo
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
