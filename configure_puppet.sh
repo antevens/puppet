@@ -340,14 +340,13 @@ function configure_puppet_conf {
 
 # Confirm user selection/options and perform system modifications
 read -p "Please confirm what you want to continue with these values (y/n):" -n 1
-if [[ ! ${REPLY} =~ ^[Yy]$ ]]
-then
+if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+	configure
+	exit 0
+else
 	echo "Configuration aborted!"
 	usage
 	exit 1
-else
-	configure
-	exit 0
 fi
 
 # The script should never get to this point, if it does there is an error

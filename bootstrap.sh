@@ -14,6 +14,8 @@ ipaddress=''
 echo "Default IP address is DHCP"
 username='admin'
 echo "Default admin username set to ${username}"
+assume_yes=0
+yes_flag=""
 echo "########## End Defaults ##########"
 
 # Determine OS, figure out we we have yum, apt or something else to use for installing Puppet
@@ -44,12 +46,14 @@ OPTIONS:
    -n      Hostname, for example: example-pc
    -d      DNS Suffix, for example: example.com
    -i      IP Address/CIDR Subnet mask, for example: 10.0.0.1/24 (if ommitted DHCP will be used)
-   -u      Username, the user that should exist and have sudo priviledges (default operator)
+   -u      Username, the user that should exist and have sudo priviledges (default admin)
+   -y      Assume "yes" to all questions, non interactive "batch" mode
+   -q      Quiet mode, minimal verbosity
 EOF
 }
 
 # Parse command line arguments
-while getopts ":n:d:i:u:h" opt; do
+while getopts ":n:d:i:u:hy" opt; do
 	case ${opt} in
 		'n')
 			hostname=${OPTARG}
@@ -66,6 +70,17 @@ while getopts ":n:d:i:u:h" opt; do
 		'u')
 			username=${OPTARG}
 			echo "Username set to ${username}"
+		;;
+		'y')
+			assume_yes=1
+			yes_flag="-y"
+			echo "User will not be prompted, all questions will be answered \"yes\""
+		;;
+		'q')
+			quiet=1
+			echo "Quiet mode, minimal verbosity"
+			echo "Quiet mode not Not implemented, exiting!"
+			exit 1
 		;;
 		'h')
 			usage
@@ -90,6 +105,12 @@ while getopts ":n:d:i:u:h" opt; do
 done
 # Cleanup getopts variables
 unset OPTSTRING OPTIND
+
+# A function that will return the value of assume_yes variable, allows usage of && and || operators
+function interactive {
+	return ${assume_yes}
+}
+
 
 function safe_find_replace {
 # Usage
@@ -193,7 +214,7 @@ function safe_find_replace {
 		if [ "${ini_section}" != "" ]; then
 			ini_section_match="`sudo grep -c \"\[${ini_section}\]\" \"${filename}\"`"
 			if [ ${ini_section_match} -lt 1 ]; then
-				echo -e '\n['"${ini_section}"']\n' | sudo tee -a "${filename}"
+				echo -e '\n['"${ini_section}"']\n' | sudo tee -a "${filename}" > /dev/null
 			elif [ ${ini_section_match} -eq 1 ]; then
 				sudo sed -i -e '/\['"${ini_section}"'\]/{:a;n;/^$/!ba;i'"${new_value}" -e '}' "${filename}"
 			else
@@ -264,9 +285,9 @@ function configure {
 
 		# Setup admin user, sudo group and secure SSH
 		groupadd -f sudo
-		useradd -G sudo ${username}
-		echo "Please enter the password for your new user: ${username}"
-		sudo passwd ${username}
+		useradd -G sudo ${username} && \
+			echo "Please enter the password for your new user: ${username}" && \
+			sudo passwd ${username}
 		safe_find_replace -n "/etc/sudoers.d/admins" -p "# Allow members of group sudo to execute any command" -c
 		safe_find_replace -n "/etc/sudoers.d/admins" -p "%sudo   ALL=(ALL:ALL) ALL" -a
 
@@ -280,7 +301,7 @@ function configure {
 		rpm -ihv  ${repo_uri}${latest_rpm_file}
 
 		# Update system to latest
-		sudo yum update
+		sudo yum ${yes_flag} update
 	;;
 	"Debian")
 		# Debian based
@@ -311,8 +332,8 @@ function configure {
 		export deb_package=puppetlabs-release-$(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }').deb && wget http://apt.puppetlabs.com/${deb_package} && dpkg -i ${deb_package}
 
 		# Update system to latest
-		sudo apt-get update
-		sudo apt-get dist-upgrade
+		sudo apt-get ${yes_flag} update
+		sudo apt-get ${yes_flag} dist-upgrade
 	;;
 	"Darwin")
 		# Mac based, not tested
@@ -336,18 +357,17 @@ function configure {
 }
 
 # Confirm user selection/options and perform system modifications
-read -r -p "Please confirm what you want to continue with these values (y/n):" -n 1
-echo ""
-if [[ ! ${REPLY} =~ ^[Yy]$ ]]
-then
+interactive && read -r -p "Please confirm what you want to continue with these values (y/n):" -n 1 || REPLY="y"
+
+if [[ ${REPLY} =~ ^[Yy]$ ]]; then
+	configure
+	exit 0
+else
 	echo "Configuration aborted!"
 	usage
 	exit 1
-else
-	configure
-	exit 0
 fi
-
+ 
 # The script should never get to this point, if it does there is an error
 echo "Unknown error occurred!"
 exit 1
