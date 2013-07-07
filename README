@@ -4,9 +4,10 @@
 sudo apt-get install wget
 sudo yum install wget
 
-# The bootstrap and puppet configuration files can be pulled idenpendently
-wget https://raw.github.com/jalli/puppet/master/configure_puppet.sh
-wget https://raw.github.com/jalli/puppet/master/bootstrap.sh
+# The bootstrap and puppet configuration files can be pulled and executed independently
+# Make sure you verify the code before blindly executing
+bash -c "source <(wget -qO - https://raw.github.com/jalli/puppet/master/configure_puppet.sh)"
+bash -c "source <(wget -qO - https://raw.github.com/jalli/puppet/master/bootstrap.sh)"
 
 # To clone this repository please issue the following command
 cd /etc && git clone https://github.com/jalli/puppet.git
