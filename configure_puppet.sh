@@ -88,6 +88,128 @@ while getopts ":s:o:p:h" opt; do
 	esac
 done
 
+function safe_find_replace {
+# Usage
+# This function is used to safely edit files for config parameters, etc
+# This function will return 0 on success or 1 if it fails to change the value
+# 
+# OPTIONS:
+#   -n      Filename, for example: /tmp/config_file
+#   -p      Regex pattern, for example: ^[a-z]*
+#   -v      Value, the value to replace with, can include variables from previous regex pattern, if ommited the pattern is used as the value
+#   -a      Append, if this flag is specified and the pattern does not exist it will be created, takes an optional argument which is the [INI] section to add the pattern to
+#   -o      Oppertunistic, don't fail if pattern is not found, takes an optional argument which is the number of matches expected/required for the change to be performed
+#   -c      Create, if file does not exist we create it, assumes append and oppertunistic
+
+	filename=""
+	pattern=""
+	new_value=""
+	force=0
+	oppertunistic=0
+	create=0
+	append=0
+	ini_section=""
+	req_matches=1
+
+	# Handle arguments
+	while getopts "n:p:v:aoc" opt; do
+		case ${opt} in
+			'n')
+				filename=${OPTARG}
+			;;
+			'p')	
+				# Properly escape control characters in pattern
+				pattern=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
+				
+				# If value is not set we set it to pattern for now
+				if [ "${new_value}" == "" ]; then new_value=${pattern}; fi
+			;;
+			'v')
+				# Properly escape control characters in new value
+				new_value=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
+			;;
+			'a')
+				append=1
+				#Optional arguments are a bit tricky with getopts but doable
+				eval next_arg="\$${OPTIND}"
+				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+					ini_section=${next_arg}
+				fi
+				unset next_arg
+			;;
+			'o')
+				oppertunistic=1
+				#Optional arguments are a bit tricky with getopts but doable
+				eval next_arg="\$${OPTIND}"
+				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+					req_matches=${next_arg}
+				fi
+				unset next_arg
+			;;
+			'c')
+				create=1
+				append=1
+				oppertunistic=1
+			;;
+		esac
+	done
+	# Cleanup getopts variables
+	unset OPTSTRING OPTIND
+	
+	# Make sure all required paramreters are provideed
+	if [ "${filename}" == "" ] || [ "${pattern}" == "" ] && [ "${append}" -ne 1 ] || [ "${new_value}" == "" ]; then
+		echo "safe_find_replace requires filename, pattern and value to be provided"
+		echo "Provided filename: ${filename}"
+		echo "Provided pattern: ${pattern}"
+		echo "Provided value: ${value}"
+		exit 64
+	fi
+	
+	# Check to make sure file exists and is normal file, create if needed and specified
+	if [ -f "${filename}" ]; then
+		echo "${filename} found and is normal file"
+	else
+		if [ ! -e "${filename}" ] && [ "${create}" -eq 1 ]; then
+			# Create file if nothing exists with the same name
+			echo "Created new file ${filename}"
+			sudo touch "${filename}"
+		else
+			echo "File ${filename} not found or is not regular file"
+			exit 74
+		fi
+	fi
+
+	# Count matches
+	num_matches="`sudo grep -c \"${pattern}\" \"${filename}\"`"
+
+	# Handle replacements
+	if [ "${pattern}" != "" ] && [ ${num_matches} -eq ${req_matches} ]; then
+		sudo sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
+	# Handle appends
+	elif [ ${append} -eq 1 ]; then
+		if [ "${ini_section}" != "" ]; then
+			ini_section_match="`sudo grep -c \"\[${ini_section}\]\" \"${filename}\"`"
+			if [ ${ini_section_match} -lt 1 ]; then
+				echo -e '\n['"${ini_section}"']\n' | sudo tee -a "${filename}"
+			elif [ ${ini_section_match} -eq 1 ]; then
+				sudo sed -i -e '/\['"${ini_section}"'\]/{:a;n;/^$/!ba;i'"${new_value}" -e '}' "${filename}"
+			else
+				echo "Multiple sections match the INI file section specified: ${ini_section}"
+				exit 1
+			fi
+		else
+			echo ${new_value} | sudo tee ${filename}
+		fi
+	# Handle opperttunistic, no error if match not found
+	elif [ ${oppertunistic} -eq 1 ]; then
+		echo "Pattern: ${pattern} not found in ${filename}, continuing"
+	# Otherwise exit with error
+	else
+		echo "Found ${num_matches} matches searching for ${pattern} in ${filename}"
+		echo "This indicates a problem, there should be only one match"
+		exit 1
+	fi
+}
 
 function configure {
 	case ${osfamily} in 
@@ -122,6 +244,9 @@ function configure {
 		sudo apt-get install puppet rubygems ruby-dev || exit_on_fail
 		sudo sed -i 's/START=no/START=yes/g' /etc/default/puppet || exit_on_fail
 		grep -q -e '\[agent\]' /etc/puppet/puppet.conf || echo -e '\n[agent]\n' | sudo tee -a /etc/puppet/puppet.conf >> /dev/null || exit_on_fail
+
+		safe_find_replace -n '/etc/puppet/puppet.conf' -p '    # The Puppetmaster this client should connect to' -a agent || exit_on_fail
+
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    # The Puppetmaster this client should connect to' -e '}' /etc/puppet/puppet.conf || exit_on_fail
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    server = '"${puppet_server}" -e '}' /etc/puppet/puppet.conf || exit_on_fail
 		sudo sed -i -e '/\[agent\]/{:a;n;/^$/!ba;i\    report = true' -e '}' /etc/puppet/puppet.conf || exit_on_fail

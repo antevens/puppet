@@ -23,6 +23,12 @@ if [ "${OSTYPE}" == "darwin"* ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == "cygwin" ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
 
+# Check if we have root permissions and if sudo is available
+if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then
+	echo "This script needs to be run as root or sudo needs to be installed on the machine"
+	exit 1
+fi
+
 usage()
 {
 cat << EOF
@@ -167,7 +173,7 @@ function safe_find_replace {
 		if [ ! -e "${filename}" ] && [ "${create}" -eq 1 ]; then
 			# Create file if nothing exists with the same name
 			echo "Created new file ${filename}"
-			touch "${filename}"
+			sudo touch "${filename}"
 		else
 			echo "File ${filename} not found or is not regular file"
 			exit 74
@@ -175,17 +181,25 @@ function safe_find_replace {
 	fi
 
 	# Count matches
-	num_matches="`grep -c \"${pattern}\" \"${filename}\"`"
+	num_matches="`sudo grep -c \"${pattern}\" \"${filename}\"`"
 
 	# Handle replacements
 	if [ "${pattern}" != "" ] && [ ${num_matches} -eq ${req_matches} ]; then
-		sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
+		sudo sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
 	# Handle appends
 	elif [ ${append} -eq 1 ]; then
 		if [ "${ini_section}" != "" ]; then
-			sed -i -e '/\['"${ini_section}"'\]/{:a;n;/^$/!ba;i'"${new_value}" -e '}' "${filename}"
+			ini_section_match="`sudo grep -c \"\[${ini_section}\]\" \"${filename}\"`"
+			if [ ${ini_section_match} -lt 1 ]; then
+				echo -e '\n['"${ini_section}"']\n' | sudo tee -a "${filename}"
+			elif [ ${ini_section_match} -eq 1 ]; then
+				sudo sed -i -e '/\['"${ini_section}"'\]/{:a;n;/^$/!ba;i'"${new_value}" -e '}' "${filename}"
+			else
+				echo "Multiple sections match the INI file section specified: ${ini_section}"
+				exit 1
+			fi
 		else
-			echo ${new_value} >> ${filename}
+			echo ${new_value} | sudo tee ${filename}
 		fi
 	# Handle opperttunistic, no error if match not found
 	elif [ ${oppertunistic} -eq 1 ]; then
@@ -208,6 +222,9 @@ function exit_on_fail {
 function configure {
 	case ${osfamily} in 
 	"RedHat") # Redhat based
+		if [ "$(whoami)" == "root" ]; then
+	                yum install sudo || exit_on_fail
+		fi
 		# Setup Networking
 		hostname ${hostname}
 		domainname ${domainname}
@@ -265,6 +282,9 @@ function configure {
 	;;
 	"Debian")
 		# Debian based
+		if [ "$(whoami)" == "root" ]; then
+			apt-get install sudo || exit_on_fail
+		fi
 		sudo hostname ${hostname}
 		sudo domainname ${domainname}
 		export hostname
