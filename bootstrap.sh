@@ -93,7 +93,7 @@ function safe_find_replace {
 #   -p      Regex pattern, for example: ^[a-z]*
 #   -v      Value, the value to replace with, can include variables from previous regex pattern, if ommited the pattern is used as the value
 #   -a      Append, if this flag is specified and the pattern does not exist it will be created, takes an optional argument which is the [INI] section to add the pattern to
-#   -o      Oppertunistic, don't fail if pattern is not found
+#   -o      Oppertunistic, don't fail if pattern is not found, takes an optional argument which is the number of matches expected/required for the change to be performed
 #   -c      Create, if file does not exist we create it, assumes append and oppertunistic
 
 	filename=""
@@ -104,6 +104,7 @@ function safe_find_replace {
 	create=0
 	append=0
 	ini_section=""
+	req_matches=1
 
 	# Handle arguments
 	while getopts "n:p:v:aoc" opt; do
@@ -123,12 +124,22 @@ function safe_find_replace {
 				new_value=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
 			;;
 			'a')
-				#Optional arguments are a bit tricky with getopts but doable
 				append=1
-				eval echo "\$${OPTIND}" | grep -v "-" > /dev/null && eval ini_section="\$${OPTIND}"
+				#Optional arguments are a bit tricky with getopts but doable
+				eval next_arg="\$${OPTIND}"
+				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+					ini_section=${next_arg}
+				fi
+				unset next_arg
 			;;
 			'o')
 				oppertunistic=1
+				#Optional arguments are a bit tricky with getopts but doable
+				eval next_arg="\$${OPTIND}"
+				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+					req_matches=${next_arg}
+				fi
+				unset next_arg
 			;;
 			'c')
 				create=1
@@ -164,10 +175,13 @@ function safe_find_replace {
 	fi
 
 	# Count matches
-	num_matches="`grep -c ${pattern} ${filename}`"
+	num_matches="`grep -c \"${pattern}\" \"${filename}\"`"
 
 	# Handle replacements
-	if [ "${pattern}" != "" ] && [ ${num_matches} -eq  1 ]; then
+	echo "############"
+	echo ${num_matches}
+	echo ${req_matches}
+	if [ "${pattern}" != "" ] && [ ${num_matches} -eq ${req_matches} ]; then
 		sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
 	# Handle appends
 	elif [ ${append} -eq 1 ]; then
@@ -224,11 +238,11 @@ function configure {
 			safe_find_replace -n "/etc/sysconfig/network-scripts/ifcfg-eth0" -p "DHCP_HOSTNAME.*" -v "DHCP_HOSTNAME=${HOSTNAME}" -a
 
 		fi
-		safe_find_replace -n "/etc/hosts" -p ' localhost ' -v " localhost ${hostname} "
-		safe_find_replace -n "/etc/hosts" -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain "
+		safe_find_replace -n "/etc/hosts" -p ' localhost ' -v " localhost ${hostname} " -o 2 
+		safe_find_replace -n "/etc/hosts" -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain " -o 2
 
-		safe_find_replace -n "/etc/sysconfig/network" -p 'localhost' -v "${hostname}"
-		safe_find_replace -n "/etc/sysconfig/network" -p 'localdomain' -v "${domainname}"
+		safe_find_replace -n "/etc/sysconfig/network" -p 'localhost' -v "${hostname}" -o
+		safe_find_replace -n "/etc/sysconfig/network" -p 'localdomain' -v "${domainname}" -o
 
 		service network restart
 
