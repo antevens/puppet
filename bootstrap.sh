@@ -154,9 +154,9 @@ function safe_find_replace {
 	# Make sure all required paramreters are provideed
 	if [ "${filename}" == "" ] || [ "${pattern}" == "" ] && [ "${append}" -ne 1 ] || [ "${new_value}" == "" ]; then
 		echo "safe_find_replace requires filename, pattern and value to be provided"
-		echo "Filename: ${filename}"
-		echo "Pattern: ${pattern}"
-		echo "Value: ${value}"
+		echo "Provided filename: ${filename}"
+		echo "Provided pattern: ${pattern}"
+		echo "Provided value: ${value}"
 		exit 64
 	fi
 	
@@ -178,9 +178,6 @@ function safe_find_replace {
 	num_matches="`grep -c \"${pattern}\" \"${filename}\"`"
 
 	# Handle replacements
-	echo "############"
-	echo ${num_matches}
-	echo ${req_matches}
 	if [ "${pattern}" != "" ] && [ ${num_matches} -eq ${req_matches} ]; then
 		sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
 	# Handle appends
@@ -255,7 +252,7 @@ function configure {
 		safe_find_replace -n "/etc/sudoers.d/admins" -p "%sudo   ALL=(ALL:ALL) ALL" -a
 
 		chmod 440 /etc/sudoers.d/admins
-		safe_find_replace -n "/etc/ssh/sshd_config" -p '#PermitRootLogin yes' -v 'PermitRootLogin no'
+		safe_find_replace -n "/etc/ssh/sshd_config" -p '#PermitRootLogin yes' -v 'PermitRootLogin no' -o
 
 		service sshd restart
 
