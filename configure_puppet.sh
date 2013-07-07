@@ -310,13 +310,12 @@ function configure {
 
 	# Only get the git Puppetfile Librarian repo if it's specified
 	# Can't use git clone since the puppet conf dirctory already exists
-	if [ "${puppet_conf_dir}" != "" ]; then
-		git init "${puppet_conf_dir}" || exit_on_fail
-		git remote add origin "${puppet_repo}" || exit_on_fail
-		git pull origin || exit_on_fail
+	if [ "${puppet_repo}" != "" ]; then
+		sudo git init "${puppet_conf_dir}" || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git pull origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
-
 
 	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
 	if [ ${puppet_server} != "" ]; then
@@ -351,11 +350,6 @@ function debian_save_iptables {
 	echo	"iptables-restore < /etc/iptables.rules" >> /etc/network/if-pre-up.d/iptablesload
 	echo	"exit 0" >> /etc/network/if-pre-up.d/iptablesload
 	sudo chmod u+x /etc/network/if-pre-up.d/iptablesload
-}
-
-# Clones a git repo to the /etc/puppet directory
-function git_clone {
-	cd /etc && sudo git clone $1 puppet || exit_on_fail
 }
 
 # Configures the puppet.conf file and restarts puppet, takes one parameter, the config file path
