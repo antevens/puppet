@@ -46,12 +46,12 @@ EOF
 }
 
 # Parse command line arguments
-while getopts ":s:o:p:h" opt; do
+while getopts ":o:sph" opt; do
 	case ${opt} in
 		's')
 			#Optional arguments are a bit tricky with getopts but doable
 			eval next_arg="\$${OPTIND}"
-			if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+			if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 				puppet_server=${next_arg}
 			else
 				if [ "`dnsdomainname`" == "" ]; then
@@ -76,9 +76,10 @@ while getopts ":s:o:p:h" opt; do
 		'p')
 			#Optional arguments are a bit tricky with getopts but doable
 			eval next_arg="\$${OPTIND}"
-			if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+			if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 				puppet_repo=${next_arg}
 			else
+				echo $next_arg
 				# Set default Git repo containing Puppetfile and site specific config
 				puppet_repo="git://github.com/${USER}/puppet.git"
 			fi 
@@ -147,7 +148,7 @@ function safe_find_replace {
 				append=1
 				#Optional arguments are a bit tricky with getopts but doable
 				eval next_arg="\$${OPTIND}"
-				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 					ini_section=${next_arg}
 				fi
 				unset next_arg
@@ -156,7 +157,7 @@ function safe_find_replace {
 				oppertunistic=1
 				#Optional arguments are a bit tricky with getopts but doable
 				eval next_arg="\$${OPTIND}"
-				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 					req_matches=${next_arg}
 				fi
 				unset next_arg
@@ -313,17 +314,20 @@ function configure {
 	if [ "${puppet_repo}" != "" ]; then
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git branch --set-upstream origin origin/master
 		cd "${puppet_conf_dir}" && sudo git pull origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
 
 	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
-	if [ ${puppet_server} != "" ]; then
+	if [ "${puppet_server}" != "" ]; then
 		sudo puppet cert sign "`hostname`"
 		sudo puppet resource service puppet ensure=stopped || exit_on_fail
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 	else
-		sudo puppet apply || exit_on_fail
+		echo "Running Puppet apply"
+		puppet apply --modulepath=/etc/puppet/modules -e "include ntpd::server"
+		sudo puppet apply -v || exit_on_fail
 	fi
 
 }

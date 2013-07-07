@@ -156,7 +156,7 @@ function safe_find_replace {
 				append=1
 				#Optional arguments are a bit tricky with getopts but doable
 				eval next_arg="\$${OPTIND}"
-				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 					ini_section=${next_arg}
 				fi
 				unset next_arg
@@ -165,7 +165,7 @@ function safe_find_replace {
 				oppertunistic=1
 				#Optional arguments are a bit tricky with getopts but doable
 				eval next_arg="\$${OPTIND}"
-				if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				if [ "`echo ${next_arg} | grep -v '^-'`" != "" ]; then
 					req_matches=${next_arg}
 				fi
 				unset next_arg
