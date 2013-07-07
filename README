@@ -1,5 +1,9 @@
 # This is a base puppet git repository, it should be cloned to the /etc directory on any machine that should be configured to use puppet.
 
+# You will need to install wget, see the following command
+sudo apt-get install wget
+sudo yum install wget
+
 # The bootstrap and puppet configuration files can be pulled idenpendently
 wget https://raw.github.com/jalli/puppet/master/configure_puppet.sh
 wget https://raw.github.com/jalli/puppet/master/bootstrap.sh
