@@ -235,7 +235,7 @@ function configure {
 	                yum install sudo || exit_on_fail
 		fi
 
-		sudo yum install git puppet rubygems ruby-devel || exit_on_fail
+		sudo yum install git make gcc puppet rubygems ruby-devel || exit_on_fail
 
 		# Only set puppet server and configure the agent if the server is specified
 		if [ "${puppet_server}" != "" ]; then
@@ -306,9 +306,12 @@ function configure {
 
 	# Generic
 
-	# Install librarian-puppet
-	echo "Installing Librarian and performing generic configuration steps"
-	sudo gem install librarian-puppet || exit_on_fail
+	# Install librarian-puppet if this is a puppet server or serverless agent
+	if [ ${puppet_server} == "" ] || [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
+		echo "Installing Librarian and performing generic configuration steps"
+		sudo gem update --system || exit_on_fail
+		sudo gem install librarian-puppet || exit_on_fail
+	fi
 
 	# Only get the git Puppetfile Librarian repo if it's specified
 	# Can't use git clone since the puppet conf dirctory already exists
