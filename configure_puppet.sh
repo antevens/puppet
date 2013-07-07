@@ -13,18 +13,6 @@ if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
 
-# Exit on failure function
-function exit_on_fail {
-	echo "Last command did not execute successfully!" >&2
-	exit 1
-}
-
-# Check if we have root permissions and if sudo is available
-if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then
-	echo "This script needs to be run as root or sudo needs to be installed on the machine"
-	exit 1
-fi
-
 # Set default puppet server name to puppet.localdomain
 if [ "`dnsdomainname`" == "" ]; then
 	puppet_server="puppet"
@@ -38,6 +26,18 @@ puppet_repo="git://github.com/${USER}/puppet.git"
 echo "Default Puppet master repository is ${puppet_repo}"
 
 echo "########## End Defaults ##########"
+
+# Exit on failure function
+function exit_on_fail {
+	echo "Last command did not execute successfully!" >&2
+	exit 1
+}
+
+# Check if we have root permissions and if sudo is available
+if [ "$(whoami)" != "root" ] &&  ! sudo -h > /dev/null 2>&1; then
+	echo "This script needs to be run as root or sudo needs to be installed on the machine"
+	exit 1
+fi
 
 usage()
 {
