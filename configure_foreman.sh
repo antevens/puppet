@@ -77,7 +77,7 @@ function configure {
 		version="`echo ${release} | awk -F\. '{print $4}'`"
 		platform="`uname -m`"
 		rpm_package_uri="http://yum.theforeman.org/releases/latest//${version}/${platform}/foreman-release.rpm"
-		sudo yum install ${rpm_package_uri}
+		sudo yum install "${rpm_package_uri}"
 
 	;;
 	"Debian")
@@ -108,8 +108,10 @@ function configure {
 	esac
 
 	# Generic
-	# Run installer
-	ruby /usr/share/foreman-installer/generate_answers.rb
+
+	# Restart puppet for immediate installation
+	sudo puppet resource service puppet ensure=stopped || exit_on_fail
+	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 }
 

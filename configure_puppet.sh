@@ -236,11 +236,11 @@ function configure {
 
 		sudo yum install git puppet rubygems ruby-devel || exit_on_fail
 
-		# Only set puppet server if it is configured
+		# Only set puppet server and configure the agent if the server is specified
 		if [ "${puppet_server}" != "" ]; then
 			safe_find_replace -n "/etc/sysconfig/puppet" -p "^#*PUPPET_SERVER=.*$" -v "PUPPET_SERVER=${puppet_server}" -a || exit_on_fail
+			sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 		fi
-		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
 		# If the provided puppet server name matches the local hostname we install the server on this machine
 		if [ "${puppet_server}" == "`hostname`" ] || [ "${puppet_server}" == 'localhost' ]; then
@@ -249,7 +249,6 @@ function configure {
 			sudo chkconfig puppetmaster on || exit_on_fail
 			sudo puppet resource service iptables ensure=stopped || exit_on_fail
 			sudo puppet resource service iptables ensure=running enable=true || exit_on_fail
-
 		fi
 	;;
 	"Debian")
@@ -259,10 +258,10 @@ function configure {
 		fi
 
 		sudo apt-get install git puppet rubygems ruby-dev || exit_on_fail
-		safe_find_replace -n "/etc/default/puppet" -p "^#*START=.*$" -v "START=yes" -a || exit_on_fail
 
-		# Only set puppet server if it is configured
+		# Only set puppet server and configure the agent if the server is specified
 		if [ ${puppet_server} != "" ]; then
+			safe_find_replace -n "/etc/default/puppet" -p "^#*START=.*$" -v "START=yes" -a || exit_on_fail
 			configure_puppet_conf '/etc/puppet/puppet.conf'
 		fi
 
@@ -311,15 +310,22 @@ function configure {
 
 	# Only get the git Puppetfile Librarian repo if it's specified
 	# Can't use git clone since the puppet conf dirctory already exists
-	if [ "${puppet_server}" != "" ]; then
+	if [ "${puppet_conf_dir}" != "" ]; then
 		git init "${puppet_conf_dir}" || exit_on_fail
 		git remote add origin "${puppet_repo}" || exit_on_fail
 		git pull origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
 
-	sudo puppet resource service puppet ensure=stopped || exit_on_fail
-	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
+
+	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
+	if [ ${puppet_server} != "" ]; then
+		sudo puppet cert sign "`hostname`"
+		sudo puppet resource service puppet ensure=stopped || exit_on_fail
+		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
+	else
+		sudo puppet apply || exit_on_fail
+	fi
 
 }
 
