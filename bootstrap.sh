@@ -4,14 +4,15 @@
 #
 
 # Defaults
-hostname='example-pc'
+hostname=`hostname`
 echo "Default hostname set to ${hostname}"
-domainname='example.com'
+domainname=`dnsdomainname || hostname | sed -n 's/[^.]*\.//p'`
+if [ "${domainname}" == "" ]; then domainname="example.com"; fi
 echo "Default domainname set to ${domainname}"
 ipaddress=''
 echo "Default IP address is DHCP"
 username='admin'
-echo "Default username set to ${username}"
+echo "Default admin username set to ${username}"
 
 # Figure out we we have yum, apt or something else to use for installing Puppet
 osfamily="Unknown"
@@ -105,7 +106,7 @@ function configure {
 		service network restart
 
 		# Setup admin user, sudo group and secure SSH
-		yum groupadd sudo
+		groupadd -f sudo
 		useradd -G sudo ${username}
 		echo "Please enter the password for your new user: ${username}"
 		sudo passwd ${username}
@@ -117,7 +118,7 @@ function configure {
 
 		# Setup Puppet yum repos
 		# Hopefully some day Puppetlabs will start using a symlink for latest
-		rpm -ihv http://yum.puppetlabs.com/el/6/products/x86_64/puppetlabs-release-6.7.noarch.rpm
+		rpm -ihv http://yum.puppetlabs.com/el/6/products/x86_64/puppetlabs-release-6-7.noarch.rpm
 
 		# Update system to latest
 		sudo yum update
@@ -168,8 +169,7 @@ function configure {
 	esac
 
 	# Generic
-	sudo gem install librarian-puppet
-	sudo librarian-puppet init
+	# Any actions which should be performed on all platforms
 }
 
 # Confirm user selection/options and perform system modifications
@@ -186,4 +186,4 @@ fi
 
 # The script should never get to this point, if it does there is an error
 echo "Unknown error occurred!"
-exit 1<
+exit 1
