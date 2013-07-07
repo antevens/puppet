@@ -73,12 +73,22 @@ function configure {
 	                yum install sudo || exit_on_fail
 		fi
 
+		release="`uname -r`"
+		version="`echo ${release} | awk -F\. '{print $4}'`"
+		platform="`uname -m`"
+		rpm_package_uri="http://yum.theforeman.org/releases/latest//${version}/${platform}/foreman-release.rpm"
+		sudo yum install ${rpm_package_uri}
+
 	;;
 	"Debian")
 		# Debian based
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo || exit_on_fail
 		fi
+		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" > /etc/apt/sources.list.d/foreman.list
+		wget -q http://deb.theforeman.org/foreman.asc -O- | sudo apt-key add -
+		sudo apt-get update && apt-get install foreman-installer
+
 	;;
 	"Darwin")
 		# Mac based, not tested
@@ -98,7 +108,8 @@ function configure {
 	esac
 
 	# Generic
-	echo GENERIC
+	# Run installer
+	ruby /usr/share/foreman-installer/generate_answers.rb
 
 }
 
