@@ -314,8 +314,8 @@ function configure {
 	if [ "${puppet_repo}" != "" ]; then
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
-		cd "${puppet_conf_dir}" && sudo git branch --set-upstream origin origin/master
-		cd "${puppet_conf_dir}" && sudo git pull origin || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git fetc origin || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
 
