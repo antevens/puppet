@@ -6,7 +6,7 @@
 # Defaults
 hostname=`hostname`
 echo "Default hostname set to ${hostname}"
-domainname=`dnsdomainname || hostname | sed -n 's/[^.]*\.//p'`
+domainname=`dnsdomainname > /dev/null 2>&1 || hostname | sed -n 's/[^.]*\.//p'`
 if [ "${domainname}" == "" ]; then domainname="example.com"; fi
 echo "Default domainname set to ${domainname}"
 ipaddress=''
@@ -41,41 +41,97 @@ EOF
 }
 
 # Parse command line arguments
-while getopts "s:o:h" opt; do
+while getopts ":n:d:i:u:h" opt; do
 	case ${opt} in
-		n)
+		'n')
 			hostname=${OPTARG}
 			echo "Hostname set to ${hostname}"
 		;;
-		d)
+		'd')
 			domainname=${OPTARG}
 			echo "DNS domain name set to ${domainname}"
 		;;
-		i)
+		'i')
 			ipaddress=${OPTARG}
 			echo "IP Address set to ${ipaddress}"
 		;;
-		u)
+		'u')
 			username=${OPTARG}
 			echo "Username set to ${username}"
 		;;
-		h)
+		'h')
 			usage
 			exit 0
 		;;
-		:)
+		'?')
+			echo "Invalid option $OPTARG"
+			usage
+			exit 64
+		;;
+		':')
 			echo "Missing option argument"
 			usage
-			exit 1
+			exit 64
 		;;
-		*)
-			echo "Invalid option"
+		'*')
+			echo "Unknown error while processing options"
 			usage
-			exit 1
+			exit 64
 		;;
 	esac
 done
 
+function safe_find_replace {
+
+# Usage
+# This function is used to safely edit files for config parameters, etc
+# This function will return 0 on success or 1 if it fails to change the value
+# 
+# OPTIONS:
+#   -n      Filename, for example: /tmp/config_file
+#   -p      Regex pattern, for example: ^[a-z]*
+#   -v      Value, the value to replace with, can include variables from previous regex pattern
+#   -f      Force, if this flag is specified and the pattern does not exist it will be created
+
+	filename=""
+	pattern=""
+	new_value=""
+	force=0
+
+	while getopts "n:p:v:f" opt; do
+		case ${opt} in
+			'n')
+				filename=${OPTARG}
+			;;
+			'p')
+				pattern=${OPTARG}
+			;;
+			'v')
+				new_value=${OPTARG}
+			;;
+			'f')
+				force=1
+			;;
+		esac
+	done
+	
+	# Make sure all required paramreters are provideed
+	if [ filename == "" || pattern == "" || new_value == "" ]; then
+		echo "safe_find_replace requires filename, pattern and value to be provided"
+		exit 64
+	fi
+
+	# Make sure there is one match and one match only
+	num_matches="`grep -c ${2} ${1}`"
+	if [ ${num_matches} == 1 ]; then
+		sed -i -e "s/${pattern}/${new_value}/g" ${filename}
+		exit 0
+	else
+		echo " Found ${num_matches} matches, this indicates a problem, there should be only one match"
+		exit 1
+	fi
+
+}
 
 function configure {
 	case ${osfamily} in 
@@ -96,7 +152,7 @@ function configure {
 
 		else
 			# Configure DHCP
-			sed -i -e 's/^ONBOOT="no/ONBOOT="yes/g' /etc/sysconfig/network-scripts/ifcfg-eth0
+			sed -i -e 's/^ONBOOT=\(.*\)[nN][oO]\(.*\)/ONBOOT=\1yes\2/g' /etc/sysconfig/network-scripts/ifcfg-eth0
 			echo "DHCP_HOSTNAME=${HOSTNAME}" >> /etc/sysconfig/network-scripts/ifcfg-eth0
 		fi
 		sed -i "s/ localhost / localhost ${hostname} /g" /etc/hosts
@@ -173,7 +229,7 @@ function configure {
 }
 
 # Confirm user selection/options and perform system modifications
-read -p "Please confirm what you want to continue with these values (y/n):" -n 1
+read -r -p "Please confirm what you want to continue with these values (y/n):" -n 1
 if [[ ! ${REPLY} =~ ^[Yy]$ ]]
 then
 	echo "Configuration aborted!"

@@ -52,33 +52,38 @@ EOF
 }
 
 # Parse command line arguments
-while getopts "s:o:p:h" opt; do
+while getopts ":s:o:p:h" opt; do
 	case ${opt} in
-		s)
+		's')
 			puppet_server=${OPTARG}
 			echo "Puppetmaster Server set to ${puppet_server}"
 		;;
-		o)
+		'o')
 			osfamily=${OPTARG}
 			echo "OS Family manually set to ${osfamily}"
 		;;
-		h)
+		'h')
 			usage
 			exit 0
 		;;
-		p)
+		'p')
 			puppet_repo=${OPTARG}
 			echo "Puppet Repo set to ${puppet_repo}"
 		;;
-		:)
-			echo "Missing option argument"
+		'?')
+			echo "Invalid option $OPTARG"
 			usage
-			exit 1
+			exit 64
 		;;
-		*)
-			echo "Invalid option"
+		':')
+			echo "Missing option argument for option $OPTARG"
 			usage
-			exit 1
+			exit 64
+		;;
+		'*')
+			echo "Unknown error while processing options"
+			usage
+			exit 64
 		;;
 	esac
 done
