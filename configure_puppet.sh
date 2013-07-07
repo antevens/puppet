@@ -11,13 +11,11 @@ yum help help > /dev/null 2>&1 && osfamily='RedHat'
 if [ "${OS}" == 'SunOS' ]; then osfamily='Solaris'; fi
 if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
-echo "Detected OS based on ${osfamily}"
+echo "Detected OS based on: ${osfamily}"
 puppet_server=""
-
-# Set default Git repo containing Puppetfile and site specific config
-puppet_repo="git://github.com/${USER}/puppet.git"
-echo "Default Puppet master repository is ${puppet_repo}"
-
+puppet_repo=""
+puppet_conf_dir="/etc/puppet"
+echo "Puppet configuration directory: ${puppet_conf_dir}" 
 echo "########## End Defaults ##########"
 
 # Exit on failure function
@@ -43,7 +41,7 @@ OPTIONS:
    -h      Show this message
    -s      Server, Puppetmaster FQDN, e.g. puppet.example.com (if server name is localhost or ${hostname} this machine will be configured as a puppetmaster server, without argument will default to puppet.localdomain
    -o      Operating System Family, e.g. RedHat, Debian, Darwin, Solaris, BSD, etc, in most cases this is not needed and will be autodetected
-   -p      Base Puppet Git repository containing the Puppetfile for librarian plus any site/installation specific config (roles/profiles/notes etc)
+   -p      Base Puppet Git repository containing the Puppetfile for librarian plus any site/installation specific modules (roles/profiles/notes etc)
 EOF
 }
 
@@ -76,8 +74,16 @@ while getopts ":s:o:p:h" opt; do
 			exit 0
 		;;
 		'p')
-			puppet_repo=${OPTARG}
-			echo "Puppet Repo set to ${puppet_repo}"
+			#Optional arguments are a bit tricky with getopts but doable
+			eval next_arg="\$${OPTIND}"
+			if [ "`echo ${next_arg} | grep -v '-'`" != "" ]; then
+				puppet_repo=${next_arg}
+			else
+				# Set default Git repo containing Puppetfile and site specific config
+				puppet_repo="git://github.com/${USER}/puppet.git"
+			fi 
+			unset next_arg
+			echo "Puppet Module Git Repo set to ${puppet_repo}"
 		;;
 		'?')
 			echo "Invalid option $OPTARG"
@@ -227,9 +233,8 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 	                yum install sudo || exit_on_fail
 		fi
-		sudo yum install git || exit_on_fail
-		git_clone ${puppet_repo} || exit_on_fail
-		sudo yum install puppet rubygems ruby-devel || exit_on_fail
+
+		sudo yum install git puppet rubygems ruby-devel || exit_on_fail
 
 		# Only set puppet server if it is configured
 		if [ ${puppet_server} != "" ]; then
@@ -252,9 +257,8 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo || exit_on_fail
 		fi
-		sudo apt-get install git || exit_on_fail
-		git_clone ${puppet_repo} || exit_on_fail
-		sudo apt-get install puppet rubygems ruby-dev || exit_on_fail
+
+		sudo apt-get install git puppet rubygems ruby-dev || exit_on_fail
 		safe_find_replace -n "/etc/default/puppet" -p "^#*START=.*$" -v "START=yes" -a || exit_on_fail
 
 		# Only set puppet server if it is configured
@@ -301,8 +305,19 @@ function configure {
 	esac
 
 	# Generic
+
+	# Install librarian-puppet
 	sudo gem install librarian-puppet || exit_on_fail
-	cd /etc/puppet && sudo librarian-puppet install || exit_on_fail
+
+	# Only get the git Puppetfile Librarian repo if it's specified
+	# Can't use git clone since the puppet conf dirctory already exists
+	if [ ${puppet_server} != "" ]; then
+		git init "${puppet_conf_dir}" || exit_on_fail
+		git remote add origin "${puppet_repo}" || exit_on_fail
+		git pull origin || exit_on_fail
+		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
+	fi
+
 	sudo puppet resource service puppet ensure=stopped || exit_on_fail
 	sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 
