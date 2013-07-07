@@ -235,7 +235,8 @@ function configure {
 	                yum install sudo || exit_on_fail
 		fi
 
-		sudo yum install git make gcc puppet rubygems ruby-devel || exit_on_fail
+		# Might want to add make and gcc
+		sudo yum install git puppet rubygems ruby-devel || exit_on_fail
 
 		# Only set puppet server and configure the agent if the server is specified
 		if [ "${puppet_server}" != "" ]; then
@@ -306,22 +307,21 @@ function configure {
 
 	# Generic
 
-	# Only get the git Puppetfile Librarian repo and install librarian if the repo is provided
+	# Only get the git Puppetfile Librarian repo and install r10k if the repo is provided
 	# Can't use git clone since the puppet conf dirctory already exists
 	# Ignore annoying warning in recent rdoc
 	if [ "${puppet_repo}" != "" ]; then
-		ignore_warning="/usr/lib/ruby/1.8/rdoc/rdoc.rb:280: warning: conflicting chdir during another chdir block"
-		# Install Librarian
-		echo "Installing Librarian and performing generic configuration steps"
-		sudo gem update --system || exit_on_fail | grep -v "${ignore_warning}"
-		sudo gem install librarian-puppet || exit_on_fail | grep -v "${ignore_warning}"
+		# Install r10k (librarian replacmeent
+		echo "Installing r10k and performing generic configuration steps"
+		#sudo gem update --system || exit_on_fail | grep -v "${ignore_warning}"
+		sudo gem install gem install r10k || exit_on_fail
 
 		# Pull Librarian config from git repo
 		sudo git init "${puppet_conf_dir}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git remote add origin "${puppet_repo}" || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git fetch origin || exit_on_fail
 		cd "${puppet_conf_dir}" && sudo git checkout -b master --track origin/master || exit_on_fail
-		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail | grep -v "${ignore_warning}"
+		cd "${puppet_conf_dir}" && sudo librarian-puppet install || exit_on_fail
 	fi
 
 	# If there is a puppet server configured we sign the cert just in case it's not done automatically and restart the agent,else we run puppet apply
@@ -331,7 +331,7 @@ function configure {
 		sudo puppet resource service puppet ensure=running enable=true || exit_on_fail
 	else
 		echo "Running Puppet apply"
-		#puppet apply --modulepath=/etc/puppet/modules -e "include ntpd::server"
+		sudo puppet apply -v --modulepath=/etc/puppet/modules -e "include profile::base"
 		#sudo puppet apply -v || exit_on_fail
 	fi
 
