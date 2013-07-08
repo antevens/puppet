@@ -236,7 +236,7 @@ function configure {
 		safe_find_replace -n "/etc/sudoers.d/admins" -p "%sudo   ALL=(ALL:ALL) ALL" -a
 
 		chmod 440 /etc/sudoers.d/admins
-		safe_find_replace -n /etc/ssh/sshd_config -p '#PermitRootLogin yes' -v 'PermitRootLogin no'
+		safe_find_replace -n "/etc/ssh/sshd_config" -p '#PermitRootLogin yes' -v 'PermitRootLogin no'
 
 		service sshd restart
 
