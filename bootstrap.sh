@@ -89,31 +89,30 @@ function safe_find_replace {
 # OPTIONS:
 #   -n      Filename, for example: /tmp/config_file
 #   -p      Regex pattern, for example: ^[a-z]*
-#   -v      Value, the value to replace with, can include variables from previous regex pattern
+#   -v      Value, the value to replace with, can include variables from previous regex pattern, if ommited the pattern is used as the value
 #   -a      Append, if this flag is specified and the pattern does not exist it will be created, takes an optional argument which is the [INI] section to add the pattern to
 #   -o      Oppertunistic, don't fail if pattern is not found
+#   -c      Create, if file does not exist we create it, assumes append and oppertunistic
 
 	filename=""
 	pattern=""
 	new_value=""
 	force=0
 	oppertunistic=0
+	create=0
 
 	# Handle arguments
-	while getopts "n:p:v:ao" opt; do
+	while getopts "n:p:v:aoc" opt; do
 		case ${opt} in
 			'n')
-				# Check to make sure file exists and is normal file
-				if [ -f "${OPTARG}" ]; then
-					filename=${OPTARG}
-				else
-					echo "File ${filename} not found or is not regular file"
-					exit 74
-				fi
+				filename=${OPTARG}
 			;;
 			'p')	
 				# Properly escape control characters in pattern
 				pattern=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
+				
+				# If value is not set we set it to pattern for now
+				if [ "${new_value}" == "" ]; then new_value=${pattern}; fi
 			;;
 			'v')
 				# Properly escape control characters in new value
@@ -127,9 +126,28 @@ function safe_find_replace {
 			'o')
 				oppertunistic=1
 			;;
-
+			'c')
+				create=1
+				append=1
+				oppertunistic=1
+			;;
 		esac
 	done
+
+	# Check to make sure file exists and is normal file, create if needed and specified
+	if [ -f "${filename}" ]; then
+		echo "${filename} found and is normal file"
+	else
+		if [ ! -e "${filename}" ] && [ "${create}" -eq 1 ]; then
+			# Create file if nothing exists with the same name
+			echo "Created new file ${filename}"
+			touch "${filename}"
+		else
+			echo "File ${filename} not found or is not regular file"
+			exit 74
+		fi
+	fi
+
 	
 	# Make sure all required paramreters are provideed
 	if [ filename == "" ] || [ pattern == "" ] && [ append -ne 1 ] || [ new_value == "" ]; then
@@ -194,16 +212,15 @@ function configure {
 
 		else
 			# Configure DHCP
-			safe_find_replace -n /etc/sysconfig/network-scripts/ifcfg-eth0 -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2' -o
-			echo "DHCP_HOSTNAME=${HOSTNAME}" >> /etc/sysconfig/network-scripts/ifcfg-eth0
-			safe_find_replace -n /tmp/puppet.conf -p "logdir.*" -v "logdir = /var/tmp/log" -a main
+			safe_find_replace -n "/etc/sysconfig/network-scripts/ifcfg-eth0" -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2' -o
+			safe_find_replace -n "/etc/sysconfig/network-scripts/ifcfg-eth0" -p "DHCP_HOSTNAME.*" -v "DHCP_HOSTNAME=${HOSTNAME}" -a
 
 		fi
-		safe_find_replace -n /etc/hosts -p ' localhost ' -v " localhost ${hostname} "
-		safe_find_replace -n /etc/hosts -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain "
+		safe_find_replace -n "/etc/hosts" -p ' localhost ' -v " localhost ${hostname} "
+		safe_find_replace -n "/etc/hosts" -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain "
 
-		safe_find_replace -n /etc/sysconfig/network -p 'localhost' -v "${hostname}"
-		safe_find_replace -n /etc/sysconfig/network -p 'localdomain' -v "${domainname}"
+		safe_find_replace -n "/etc/sysconfig/network" -p 'localhost' -v "${hostname}"
+		safe_find_replace -n "/etc/sysconfig/network" -p 'localdomain' -v "${domainname}"
 
 		service network restart
 
@@ -212,8 +229,9 @@ function configure {
 		useradd -G sudo ${username}
 		echo "Please enter the password for your new user: ${username}"
 		sudo passwd ${username}
-		echo "# Allow members of group sudo to execute any command" >> /etc/sudoers.d/admins
-		echo "%sudo   ALL=(ALL:ALL) ALL" >> /etc/sudoers.d/admins
+		safe_find_replace -n "/etc/sudoers.d/admins" -p "# Allow members of group sudo to execute any command" -c
+		safe_find_replace -n "/etc/sudoers.d/admins" -p "%sudo   ALL=(ALL:ALL) ALL" -a
+
 		chmod 440 /etc/sudoers.d/admins
 		safe_find_replace -n /etc/ssh/sshd_config -p '#PermitRootLogin yes' -v 'PermitRootLogin no'
 
