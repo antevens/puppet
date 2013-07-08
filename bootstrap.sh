@@ -254,8 +254,8 @@ function configure {
 		export hostname
 		export domainname
 		export HOSTNAME=${hostname}.${domainname}
-		safe_find_replace -n /etc/hosts -p 'localhost-ubuntu' -v "localhost"
-		safe_find_replace -n /etc/hosts -p 's/^127\.0\.1\.1.*ubuntu$' -v "127.0.1.1\t${hostname}.${domainname} ${hostname}"
+		safe_find_replace -n "/etc/hosts" -p 'localhost-ubuntu' -v "localhost"
+		safe_find_replace -n "/etc/hosts" -p 's/^127\.0\.1\.1.*ubuntu$' -v "127.0.1.1\t${hostname}.${domainname} ${hostname}"
 
 		echo "${hostname}.${domainname}" | sudo tee /etc/hostname
                 if [ "${ipaddress}" != "" ]; then
