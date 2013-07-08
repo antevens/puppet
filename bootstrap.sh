@@ -6,7 +6,7 @@
 # Defaults
 hostname=`hostname`
 echo "Default hostname set to ${hostname}"
-domainname=`dnsdomainname > /dev/null 2>&1 || hostname | sed -n 's/[^.]*\.//p'`
+domainname=`hostname | sed -n 's/[^.]*\.//p' || dnsdomainname 2> /dev/null`
 if [ "${domainname}" == "" ]; then domainname="example.com"; fi
 echo "Default domainname set to ${domainname}"
 ipaddress=''
@@ -90,18 +90,20 @@ function safe_find_replace {
 #   -n      Filename, for example: /tmp/config_file
 #   -p      Regex pattern, for example: ^[a-z]*
 #   -v      Value, the value to replace with, can include variables from previous regex pattern
-#   -f      Force, if this flag is specified and the pattern does not exist it will be created
+#   -a      Force, if this flag is specified and the pattern does not exist it will be created
+#   -o      Oppertunistic, don't fail if pattern is not found
 
 	filename=""
 	pattern=""
 	new_value=""
 	force=0
+	match_operator="eq"
 
-	while getopts "n:p:v:f" opt; do
+	while getopts "n:p:v:ao" opt; do
 		case ${opt} in
 			'n')
 				# Check to make sure file exists and is normal file
-				if [ -f "${filename}" ]; then
+				if [ -f "${OPTARG}" ]; then
 					filename=${OPTARG}
 				else
 					echo "File ${filename} not found or is not regular file"
@@ -114,9 +116,13 @@ function safe_find_replace {
 			'v')
 				new_value=${OPTARG}
 			;;
-			'f')
-				force=1
+			'a')
+				append=1
 			;;
+			'o')
+				match_operator="le"
+			;;
+
 		esac
 	done
 	
@@ -128,11 +134,12 @@ function safe_find_replace {
 
 	# Make sure there is one match and one match only
 	num_matches="`grep -c ${pattern} ${filename}`"
-	if [ ${num_matches} == 1 ]; then
+	if [ ${num_matches} -${match_operator} 1 ]; then
 		sed -i -e "s/${pattern}/${new_value}/g" ${filename}
 		exit 0
 	else
-		echo "Found ${num_matches} matches, this indicates a problem, there should be only one match"
+		echo "Found ${num_matches} matches searching for ${pattern} in ${filename}"
+		echo "This indicates a problem, there should be only one match"
 		exit 1
 	fi
 
@@ -164,7 +171,7 @@ function configure {
 
 		else
 			# Configure DHCP
-			safe_find_replace -n /etc/sysconfig/network-scripts/ifcfg-eth0 -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2'
+			safe_find_replace -n /etc/sysconfig/network-scripts/ifcfg-eth0 -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2' -o
 			echo "DHCP_HOSTNAME=${HOSTNAME}" >> /etc/sysconfig/network-scripts/ifcfg-eth0
 		fi
 		safe_find_replace -n /etc/hosts -p ' localhost ' -v " localhost ${hostname} "
