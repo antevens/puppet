@@ -80,6 +80,9 @@ while getopts ":n:d:i:u:h" opt; do
 		;;
 	esac
 done
+# Cleanup
+unset ${OPTSTRING}
+unset ${OPTIND}
 
 function safe_find_replace {
 # Usage
@@ -135,6 +138,9 @@ function safe_find_replace {
 			;;
 		esac
 	done
+	# Cleanup
+	unset ${OPTSTRING}
+	unset ${OPTIND}
 	
 	# Make sure all required paramreters are provideed
 	if [ "${filename}" == "" ] || [ "${pattern}" == "" ] && [ "${append}" -ne 1 ] || [ "${new_value}" == "" ]; then
