@@ -134,7 +134,16 @@ function safe_find_replace {
 			;;
 		esac
 	done
-
+	
+	# Make sure all required paramreters are provideed
+	if [ filename == "" ] || [ pattern == "" ] && [ append -ne 1 ] || [ new_value == "" ]; then
+		echo "safe_find_replace requires filename, pattern and value to be provided"
+		echo "Filename: ${filename}"
+		echo "Pattern: ${pattern}"
+		echo "Value: ${value}"
+		exit 64
+	fi
+	
 	# Check to make sure file exists and is normal file, create if needed and specified
 	if [ -f "${filename}" ]; then
 		echo "${filename} found and is normal file"
@@ -147,13 +156,6 @@ function safe_find_replace {
 			echo "File ${filename} not found or is not regular file"
 			exit 74
 		fi
-	fi
-
-	
-	# Make sure all required paramreters are provideed
-	if [ filename == "" ] || [ pattern == "" ] && [ append -ne 1 ] || [ new_value == "" ]; then
-		echo "safe_find_replace requires filename, pattern and value to be provided"
-		exit 64
 	fi
 
 	# Count matches
@@ -171,7 +173,7 @@ function safe_find_replace {
 		fi
 	# Handle opperttunistic, no error if match not found
 	elif [ ${oppertunistic} -eq 1 ]; then
-		echo "Did not find ${pattern} in ${filename}"
+		echo "Pattern: ${pattern} not found in ${filename}, continuing"
 	# Otherwise exit with error
 	else
 		echo "Found ${num_matches} matches searching for ${pattern} in ${filename}"
