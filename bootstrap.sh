@@ -4,6 +4,7 @@
 #
 
 # Defaults
+echo "########## Start Defaults ##########"
 hostname=`hostname`
 echo "Default hostname set to ${hostname}"
 domainname=`hostname | sed -n 's/[^.]*\.//p' || dnsdomainname 2> /dev/null`
@@ -13,6 +14,7 @@ ipaddress=''
 echo "Default IP address is DHCP"
 username='admin'
 echo "Default admin username set to ${username}"
+echo "########## End Defaults ##########"
 
 # Determine OS, figure out we we have yum, apt or something else to use for installing Puppet
 osfamily="Unknown"
