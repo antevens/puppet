@@ -136,7 +136,7 @@ function safe_find_replace {
 	done
 	
 	# Make sure all required paramreters are provideed
-	if [ filename == "" ] || [ pattern == "" ] && [ append -ne 1 ] || [ new_value == "" ]; then
+	if [ "${filename}" == "" ] || [ "${pattern}" == "" ] && [ "${append}" -ne 1 ] || [ "${new_value}" == "" ]; then
 		echo "safe_find_replace requires filename, pattern and value to be provided"
 		echo "Filename: ${filename}"
 		echo "Pattern: ${pattern}"
