@@ -107,7 +107,6 @@ function configure {
 			sudo yum install puppet-server || exit_on_fail
 			sudo service puppetmaster start || exit_on_fail
 			sudo chkconfig puppetmaster on || exit_on_fail
-			sudo sed -i '-A INPUT -m state --state NEW -m tcp -p tcp --dport 8140 -j ACCEPT' /etc/sysconfig/iptables || exit_on_fail
 			sudo puppet resource service iptables ensure=stopped || exit_on_fail
 			sudo puppet resource service iptables ensure=running enable=true || exit_on_fail
 

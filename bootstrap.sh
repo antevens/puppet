@@ -14,7 +14,7 @@ echo "Default IP address is DHCP"
 username='admin'
 echo "Default admin username set to ${username}"
 
-# Figure out we we have yum, apt or something else to use for installing Puppet
+# Determine OS, figure out we we have yum, apt or something else to use for installing Puppet
 osfamily="Unknown"
 apt-get help > /dev/null 2>&1 && osfamily='Debian'
 yum help help > /dev/null 2>&1 && osfamily='RedHat'
@@ -90,15 +90,16 @@ function safe_find_replace {
 #   -n      Filename, for example: /tmp/config_file
 #   -p      Regex pattern, for example: ^[a-z]*
 #   -v      Value, the value to replace with, can include variables from previous regex pattern
-#   -a      Force, if this flag is specified and the pattern does not exist it will be created
+#   -a      Append, if this flag is specified and the pattern does not exist it will be created, takes an optional argument which is the [INI] section to add the pattern to
 #   -o      Oppertunistic, don't fail if pattern is not found
 
 	filename=""
 	pattern=""
 	new_value=""
 	force=0
-	match_operator="eq"
+	oppertunistic=0
 
+	# Handle arguments
 	while getopts "n:p:v:ao" opt; do
 		case ${opt} in
 			'n')
@@ -110,41 +111,63 @@ function safe_find_replace {
 					exit 74
 				fi
 			;;
-			'p')
-				pattern=${OPTARG}
+			'p')	
+				# Properly escape control characters in pattern
+				pattern=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
 			;;
 			'v')
-				new_value=${OPTARG}
+				# Properly escape control characters in new value
+				new_value=`echo ${OPTARG} | sed -e 's/[\/&]/\\\\&/g'`
 			;;
 			'a')
+				#Optional arguments are a bit tricky with getopts but doable
 				append=1
+				eval echo "\$${OPTIND}" | grep -v "-" > /dev/null && eval ini_section="\$${OPTIND}"
 			;;
 			'o')
-				match_operator="le"
+				oppertunistic=1
 			;;
 
 		esac
 	done
 	
 	# Make sure all required paramreters are provideed
-	if [ filename == "" ] || [ pattern == "" ] || [ new_value == "" ]; then
+	if [ filename == "" ] || [ pattern == "" ] && [ append -ne 1 ] || [ new_value == "" ]; then
 		echo "safe_find_replace requires filename, pattern and value to be provided"
 		exit 64
 	fi
 
-	# Make sure there is one match and one match only
+	# Count matches
 	num_matches="`grep -c ${pattern} ${filename}`"
-	if [ ${num_matches} -${match_operator} 1 ]; then
-		sed -i -e "s/${pattern}/${new_value}/g" ${filename}
-		exit 0
+
+	# Handle replacements
+	if [ "${pattern}" != "" ] && [ ${num_matches} -eq  1 ]; then
+		sed -i -e 's/'"${pattern}"'/'"${new_value}"'/g' "${filename}"
+	# Handle appends
+	elif [ ${append} -eq 1 ]; then
+		if [ "${ini_section}" != "" ]; then
+			sed -i -e '/\['"${ini_section}"'\]/{:a;n;/^$/!ba;i'"${new_value}" -e '}' "${filename}"
+		else
+			echo ${new_value} >> ${filename}
+		fi
+	# Handle opperttunistic, no error if match not found
+	elif [ ${oppertunistic} -eq 1 ]; then
+		echo "Did not find ${pattern} in ${filename}"
+	# Otherwise exit with error
 	else
 		echo "Found ${num_matches} matches searching for ${pattern} in ${filename}"
 		echo "This indicates a problem, there should be only one match"
 		exit 1
 	fi
-
 }
 
+# Exit on failure function
+function exit_on_fail {
+	echo "Last command did not execute successfully!" >&2
+	exit 1
+}
+
+# Primary configuration section
 function configure {
 	case ${osfamily} in 
 	"RedHat") # Redhat based
@@ -173,6 +196,8 @@ function configure {
 			# Configure DHCP
 			safe_find_replace -n /etc/sysconfig/network-scripts/ifcfg-eth0 -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2' -o
 			echo "DHCP_HOSTNAME=${HOSTNAME}" >> /etc/sysconfig/network-scripts/ifcfg-eth0
+			safe_find_replace -n /tmp/puppet.conf -p "logdir.*" -v "logdir = /var/tmp/log" -a main
+
 		fi
 		safe_find_replace -n /etc/hosts -p ' localhost ' -v " localhost ${hostname} "
 		safe_find_replace -n /etc/hosts -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain "
@@ -257,7 +282,7 @@ echo ""
 if [[ ! ${REPLY} =~ ^[Yy]$ ]]
 then
 	echo "Configuration aborted!"
-		usage
+	usage
 	exit 1
 else
 	configure
