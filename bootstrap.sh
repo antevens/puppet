@@ -82,7 +82,6 @@ while getopts ":n:d:i:u:h" opt; do
 done
 
 function safe_find_replace {
-
 # Usage
 # This function is used to safely edit files for config parameters, etc
 # This function will return 0 on success or 1 if it fails to change the value
@@ -101,7 +100,13 @@ function safe_find_replace {
 	while getopts "n:p:v:f" opt; do
 		case ${opt} in
 			'n')
-				filename=${OPTARG}
+				# Check to make sure file exists and is normal file
+				if [ -f "${filename}" ]; then
+					filename=${OPTARG}
+				else
+					echo "File ${filename} not found or is not regular file"
+					exit 74
+				fi
 			;;
 			'p')
 				pattern=${OPTARG}
@@ -116,18 +121,18 @@ function safe_find_replace {
 	done
 	
 	# Make sure all required paramreters are provideed
-	if [ filename == "" || pattern == "" || new_value == "" ]; then
+	if [ filename == "" ] || [ pattern == "" ] || [ new_value == "" ]; then
 		echo "safe_find_replace requires filename, pattern and value to be provided"
 		exit 64
 	fi
 
 	# Make sure there is one match and one match only
-	num_matches="`grep -c ${2} ${1}`"
+	num_matches="`grep -c ${pattern} ${filename}`"
 	if [ ${num_matches} == 1 ]; then
 		sed -i -e "s/${pattern}/${new_value}/g" ${filename}
 		exit 0
 	else
-		echo " Found ${num_matches} matches, this indicates a problem, there should be only one match"
+		echo "Found ${num_matches} matches, this indicates a problem, there should be only one match"
 		exit 1
 	fi
 
@@ -142,6 +147,13 @@ function configure {
 		export hostname
 		export domainname
 		export HOSTNAME=${hostname}.${domainname}
+		release="`uname -r`"
+		flavour="`echo ${release} | awk -F\. '{print substr ($4,0,2)}'`"
+		major_version="`echo ${release} | awk -F\. '{print substr ($4,3,3)}'`"
+		platform="`uname -m`"
+		repo_uri="https://yum.puppetlabs.com/${flavour}/${major_version}/products/${platform}/"
+		latest_rpm_file="`curl ${repo_uri} 2>&1 | grep -o -E 'href="([^"#]+)"' | cut -d'"' -f2  | grep puppetlabs-release | sort -r | head -1`"
+
 		# If using DHCP we you want DNS to be registered by default
                 if [ "${ipaddress}" != "" ]; then
 			# Configure static IP
@@ -152,13 +164,15 @@ function configure {
 
 		else
 			# Configure DHCP
-			sed -i -e 's/^ONBOOT=\(.*\)[nN][oO]\(.*\)/ONBOOT=\1yes\2/g' /etc/sysconfig/network-scripts/ifcfg-eth0
+			safe_find_replace -n /etc/sysconfig/network-scripts/ifcfg-eth0 -p '^ONBOOT=\(.*\)[nN][oO]\(.*\)'  -v 'ONBOOT=\1yes\2'
 			echo "DHCP_HOSTNAME=${HOSTNAME}" >> /etc/sysconfig/network-scripts/ifcfg-eth0
 		fi
-		sed -i "s/ localhost / localhost ${hostname} /g" /etc/hosts
-		sed -i "s/ localhost.localdomain / ${hostname}.${domainname} localhost.localdomain  /g" /etc/hosts
-		sed -i "s/localhost/${hostname}/g" /etc/sysconfig/network
-		sed -i "s/localdomain/${domainname}/g" /etc/sysconfig/network
+		safe_find_replace -n /etc/hosts -p ' localhost ' -v " localhost ${hostname} "
+		safe_find_replace -n /etc/hosts -p ' localhost.localdomain ' -v " ${hostname}.${domainname} localhost.localdomain "
+
+		safe_find_replace -n /etc/sysconfig/network -p 'localhost' -v "${hostname}"
+		safe_find_replace -n /etc/sysconfig/network -p 'localdomain' -v "${domainname}"
+
 		service network restart
 
 		# Setup admin user, sudo group and secure SSH
@@ -169,12 +183,13 @@ function configure {
 		echo "# Allow members of group sudo to execute any command" >> /etc/sudoers.d/admins
 		echo "%sudo   ALL=(ALL:ALL) ALL" >> /etc/sudoers.d/admins
 		chmod 440 /etc/sudoers.d/admins
-		sed -i 's/#PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+		safe_find_replace -n /etc/ssh/sshd_config -p '#PermitRootLogin yes' -v 'PermitRootLogin no'
+
 		service sshd restart
 
-		# Setup Puppet yum repos
+		# Setup Puppet yum repos, figure out latest and right file
 		# Hopefully some day Puppetlabs will start using a symlink for latest
-		rpm -ihv http://yum.puppetlabs.com/el/6/products/x86_64/puppetlabs-release-6-7.noarch.rpm
+		rpm -ihv  ${repo_uri}${latest_rpm_file}
 
 		# Update system to latest
 		sudo yum update
@@ -186,8 +201,9 @@ function configure {
 		export hostname
 		export domainname
 		export HOSTNAME=${hostname}.${domainname}
-		sudo sed -i 's/localhost-ubuntu/locahost/g' /etc/hosts
-		sudo sed -i "s/^127\.0\.1\.1.*ubuntu$/127.0.1.1\t${hostname}.${domainname} ${hostname}/g" /etc/hosts
+		safe_find_replace -n /etc/hosts -p 'localhost-ubuntu' -v "localhost"
+		safe_find_replace -n /etc/hosts -p 's/^127\.0\.1\.1.*ubuntu$' -v "127.0.1.1\t${hostname}.${domainname} ${hostname}"
+
 		echo "${hostname}.${domainname}" | sudo tee /etc/hostname
                 if [ "${ipaddress}" != "" ]; then
 			# Configure static IP
@@ -230,10 +246,11 @@ function configure {
 
 # Confirm user selection/options and perform system modifications
 read -r -p "Please confirm what you want to continue with these values (y/n):" -n 1
+echo ""
 if [[ ! ${REPLY} =~ ^[Yy]$ ]]
 then
 	echo "Configuration aborted!"
-	usage
+		usage
 	exit 1
 else
 	configure
