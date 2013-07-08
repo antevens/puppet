@@ -101,6 +101,7 @@ function safe_find_replace {
 	oppertunistic=0
 	create=0
 	append=0
+	ini_section=""
 
 	# Handle arguments
 	while getopts "n:p:v:aoc" opt; do
