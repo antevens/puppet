@@ -4,6 +4,7 @@
 #
 
 # Figure out we we have yum, apt or something else to use for installing Puppet
+echo "########## Start Defaults ##########"
 osfamily='Unknown'
 apt-get help > /dev/null 2>&1 && osfamily='Debian'
 yum help help > /dev/null 2>&1 && osfamily='RedHat'
@@ -35,6 +36,8 @@ echo "Default Puppet server detected is ${puppet_server}"
 # Set default Git repo containing Puppetfile and site specific config
 puppet_repo="git://github.com/${USER}/puppet.git"
 echo "Default Puppet master repository is ${puppet_repo}"
+
+echo "########## End Defaults ##########"
 
 usage()
 {
