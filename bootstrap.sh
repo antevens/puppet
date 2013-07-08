@@ -100,6 +100,7 @@ function safe_find_replace {
 	force=0
 	oppertunistic=0
 	create=0
+	append=0
 
 	# Handle arguments
 	while getopts "n:p:v:aoc" opt; do
