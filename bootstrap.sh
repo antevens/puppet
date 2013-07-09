@@ -201,7 +201,7 @@ function safe_find_replace {
 				exit 1
 			fi
 		else
-			echo ${new_value} | sudo tee ${filename}
+			echo ${new_value} | sudo tee -a ${filename}
 		fi
 	# Handle opperttunistic, no error if match not found
 	elif [ ${oppertunistic} -eq 1 ]; then
