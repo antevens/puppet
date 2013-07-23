@@ -122,11 +122,11 @@ function safe_find_replace {
 #   -p      Regex pattern, for example: ^[a-z]*
 #   -v      Value, the value to replace with, can include variables from previous regex pattern, if ommited the pattern is used as the value
 #   -a      Append, if this flag is specified and the pattern does not exist it will be created, takes an optional argument which is the [INI] section to add the pattern to
-#   -o      Oppertunistic, don't fail if pattern is not found, takes an optional argument which is the number of matches expected/required for the change to be performed
 #   -c      Create, if file does not exist we create it, assumes append and oppertunistic
 
 	filename=""
 	pattern=""
+#   -o      Oppertunistic, don't fail if pattern is not found, takes an optional argument which is the number of matches expected/required for the change to be performed
 	new_value=""
 	force=0
 	oppertunistic=0
@@ -337,6 +337,7 @@ function configure {
 	;;
 	"Darwin")
 		# Mac based, not tested
+		# Should make sure homebrew is installed or install it
 		echo "Darwin based operating systems not yet supported!"
 		exit 1
 	;;
