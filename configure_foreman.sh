@@ -33,7 +33,7 @@ usage()
 cat << EOF
 usage: $0 options
 
-This script installs and configures Puppet
+This script installs and configures The Foreman
 
 OPTIONS:
    -h      Show this message
@@ -86,7 +86,7 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo || exit_on_fail
 		fi
-		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" | tee /etc/apt/sources.list.d/foreman.list
+		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" | sudo tee /etc/apt/sources.list.d/foreman.list
 		wget -q http://deb.theforeman.org/foreman.asc -O- | sudo apt-key add -
 		sudo apt-get update && apt-get install foreman-installer
 
@@ -109,6 +109,9 @@ function configure {
 	esac
 
 	# Generic
+
+        #Verify puppet is installed and configured
+        puppet apt-get help > /dev/null 2>&1 || sudo ./configure_puppet.sh
 
 	# Restart puppet for immediate installation
 	sudo puppet resource service puppet ensure=stopped || exit_on_fail
