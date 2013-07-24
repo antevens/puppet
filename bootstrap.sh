@@ -23,7 +23,7 @@ osfamily="Unknown"
 apt-get help > /dev/null 2>&1 && osfamily='Debian'
 yum help help > /dev/null 2>&1 && osfamily='RedHat'
 if [ "${OS}" == "SunOS" ]; then osfamily='Solaris'; fi
-if [ "${OSTYPE}" == "darwin"* ]; then osfamily='Darwin'; fi
+if [ `echo "${OSTYPE}" | grep 'darwin'` ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == "cygwin" ]; then osfamily='Cygwin'; fi
 echo "Detected OS based on ${osfamily}"
 
@@ -179,7 +179,7 @@ function safe_find_replace {
 	done
 	# Cleanup getopts variables
 	unset OPTSTRING OPTIND
-	
+
 	# Make sure all required paramreters are provideed
 	if [ "${filename}" == "" ] || [ "${pattern}" == "" ] && [ "${append}" -ne 1 ] || [ "${new_value}" == "" ]; then
 		echo "safe_find_replace requires filename, pattern and value to be provided"
@@ -188,7 +188,7 @@ function safe_find_replace {
 		echo "Provided value: ${value}"
 		exit 64
 	fi
-	
+
 	# Check to make sure file exists and is normal file, create if needed and specified
 	if [ -f "${filename}" ]; then
 		echo "${filename} found and is normal file"

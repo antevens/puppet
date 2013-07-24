@@ -9,8 +9,9 @@ osfamily='Unknown'
 apt-get help > /dev/null 2>&1 && osfamily='Debian'
 yum help help > /dev/null 2>&1 && osfamily='RedHat'
 if [ "${OS}" == 'SunOS' ]; then osfamily='Solaris'; fi
-if [ "${OSTYPE}" == 'darwin'* ]; then osfamily='Darwin'; fi
+if [ `echo "${OSTYPE}" | grep 'darwin'` ]; then osfamily='Darwin'; fi
 if [ "${OSTYPE}" == 'cygwin' ]; then osfamily='Cygwin'; fi
+
 echo "Detected OS based on ${osfamily}"
 echo "########## End Defaults ##########"
 
@@ -85,7 +86,7 @@ function configure {
 		if [ "$(whoami)" == "root" ]; then
 			apt-get install sudo || exit_on_fail
 		fi
-		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" > /etc/apt/sources.list.d/foreman.list
+		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" | tee /etc/apt/sources.list.d/foreman.list
 		wget -q http://deb.theforeman.org/foreman.asc -O- | sudo apt-key add -
 		sudo apt-get update && apt-get install foreman-installer
 
