@@ -123,6 +123,7 @@ function configure {
 
 # Confirm user selection/options and perform system modifications
 read -p "Please confirm what you want to continue with these values (y/n):" -n 1
+echo ""
 if [[ ${REPLY} =~ ^[Yy]$ ]]; then
 	configure
 	exit 0
