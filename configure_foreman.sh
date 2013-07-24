@@ -88,7 +88,7 @@ function configure {
 		fi
 		echo "deb http://deb.theforeman.org/ $(grep DISTRIB_CODENAME /etc/lsb-release | sed 's/=/ /' | awk '{ print $2 }') stable" | sudo tee /etc/apt/sources.list.d/foreman.list
 		wget -q http://deb.theforeman.org/foreman.asc -O- | sudo apt-key add -
-		sudo apt-get update && apt-get install foreman-installer
+		sudo apt-get update && sudo apt-get install foreman-installer
 
 	;;
 	"Darwin")
