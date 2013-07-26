@@ -307,11 +307,9 @@ function configure {
 
 	# Generic
 
-	# Only get the git Puppetfile Librarian repo and install r10k if the repo is provided
+	# Only get the git Puppetfile Librarian/r10k repo and install r10k if the repo is provided
 	# Can't use git clone since the puppet conf dirctory already exists
-	# Ignore annoying warning in recent rdoc
 	if [ "${puppet_repo}" != "" ]; then
-		# Install r10k (librarian replacmeent
 		echo "Installing r10k and performing generic configuration steps"
 		#sudo gem update --system || exit_on_fail | grep -v "${ignore_warning}"
 		sudo gem install r10k || exit_on_fail
