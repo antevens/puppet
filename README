@@ -12,6 +12,9 @@ bash -c "source <(wget -qO - https://raw.github.com/jalli/puppet/master/bootstra
 # Or on Mac
 bash -c "source `curl -s https://raw.github.com/jalli/puppet/master/bootstrap.sh`"
 
+# Or if authentication is required
+bash -c "source `curl -u $USER -s https://raw.github.com/jalli/puppet/master/configure_puppet.sh`"
+
 
 # They can also be pulled and executed with parameters like such:
 bash -c "source <(wget -qO - https://raw.github.com/jalli/puppet/master/configure_puppet.sh) -s host.example.com -p git://github.com/jalli/puppet.git"
